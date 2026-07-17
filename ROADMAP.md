@@ -81,13 +81,35 @@ check the proto), `extract_av_tags` (`[sound:...]` audio tags),
 
 ## Step 1 — Cross-compile rslib (risk #1, do this before any Swift)
 
-- [ ] From the anki-main root:
+- [x] From the anki-main root:
       `cargo build --target aarch64-apple-ios -p anki`
-- [ ] Same with `--target aarch64-apple-ios-sim`
-- [ ] If it breaks: read the error. Usual suspects: a native build dep
+      (needs `--features native-tls`, see note below)
+- [x] Same with `--target aarch64-apple-ios-sim`
+- [x] If it breaks: read the error. Usual suspects: a native build dep
       (protoc — install via brew if asked for), a TLS crate. Fix via Cargo
       features or tool installs. Do not disable sync.
-- [ ] Verify: both builds finish with `Finished` and no errors.
+      Hit 3 real issues, all environment/tooling, none required touching
+      rslib/proto/pylib:
+      1. `protoc` not on PATH for non-interactive shells → pass
+         `PROTOC=/opt/homebrew/bin/protoc` explicitly (brew installs it
+         unlinked into a non-login-shell PATH).
+      2. `ftl/core-repo` and `ftl/qt-repo` are git submodules
+         (`anki-core-i18n`, `anki-desktop-ftl`) and anki-main isn't a git
+         repo here, so they were never checked out. Cloned them directly
+         (shallow) into place instead of `git submodule update` — same
+         result, no git needed at anki-main root.
+      3. `-p anki` alone doesn't compile: `rslib/Cargo.toml`'s `reqwest`
+         with `native-tls` is a **dev-dependency** only; the real build
+         gets its TLS backend via the `anki` crate's own `native-tls`/
+         `rustls` feature flags, forwarded from `pylib/rsbridge`'s
+         features (see `build/configure/src/rust.rs` — non-Linux picks
+         `native-tls`). Without a TLS feature, reqwest has no `__tls`
+         feature, so `tokio/io-util` never activates and
+         `AsyncReadExt`/`AsyncWriteExt`/etc. are missing → build with
+         `--features native-tls` (matches the desktop macOS build; the
+         future `rsbridge-ios` crate in Step 2 should forward this same
+         feature to `anki`).
+- [x] Verify: both builds finish with `Finished` and no errors.
 
 ## Step 2 — FFI bridge
 
