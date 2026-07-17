@@ -49,6 +49,7 @@ struct DecksView: View {
     @State private var isImporting = false
     @State private var importResult: String?
     @State private var resettingDeck: DeckRow?
+    @State private var deletingDeck: DeckRow?
     @State private var actionError: String?
 
     var body: some View {
@@ -122,6 +123,19 @@ struct DecksView: View {
                 Text("Every card in “\(deck.name)” goes back to new and all study progress is lost.")
             }
             .alert(
+                "Delete Deck?",
+                isPresented: Binding(
+                    get: { deletingDeck != nil }, set: { if !$0 { deletingDeck = nil } }),
+                presenting: deletingDeck
+            ) { deck in
+                Button("Delete", role: .destructive) {
+                    Task { await deleteDeck(deck) }
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: { deck in
+                Text("“\(deck.name)”, its subdecks, and all their cards will be deleted.")
+            }
+            .alert(
                 "Error",
                 isPresented: Binding(
                     get: { actionError != nil }, set: { if !$0 { actionError = nil } })
@@ -167,11 +181,33 @@ struct DecksView: View {
         .buttonStyle(.plain)
         .swipeActions(edge: .trailing) {
             Button(role: .destructive) {
+                deletingDeck = row
+            } label: {
+                Label("Delete", systemImage: "trash")
+            }
+            Button {
                 resettingDeck = row
             } label: {
                 Label("Restart", systemImage: "arrow.counterclockwise")
             }
             .tint(.orange)
+        }
+        .contextMenu {
+            Button {
+                reviewingDeckID = row.id
+            } label: {
+                Label("Study", systemImage: "play.fill")
+            }
+            Button {
+                resettingDeck = row
+            } label: {
+                Label("Restart", systemImage: "arrow.counterclockwise")
+            }
+            Button(role: .destructive) {
+                deletingDeck = row
+            } label: {
+                Label("Delete", systemImage: "trash")
+            }
         }
     }
 
@@ -199,20 +235,30 @@ struct DecksView: View {
 
     @ViewBuilder
     private func deckRowLabel(_ row: DeckRow) -> some View {
-        HStack {
+        HStack(spacing: 6) {
             Text(row.name)
                 .padding(.leading, CGFloat(row.level - 1) * 16)
             Spacer()
-            if row.newCount > 0 {
-                Text("\(row.newCount)").foregroundStyle(.blue)
-            }
-            if row.learnCount > 0 {
-                Text("\(row.learnCount)").foregroundStyle(.orange)
-            }
-            if row.reviewCount > 0 {
-                Text("\(row.reviewCount)").foregroundStyle(.green)
+            if row.newCount == 0 && row.learnCount == 0 && row.reviewCount == 0 {
+                Image(systemName: "checkmark.circle")
+                    .foregroundStyle(.tertiary)
+                    .accessibilityLabel("Nothing due")
+            } else {
+                if row.newCount > 0 { countBadge(row.newCount, .blue) }
+                if row.learnCount > 0 { countBadge(row.learnCount, .orange) }
+                if row.reviewCount > 0 { countBadge(row.reviewCount, .green) }
             }
         }
+    }
+
+    private func countBadge(_ count: UInt32, _ color: Color) -> some View {
+        Text("\(count)")
+            .font(.subheadline.weight(.medium).monospacedDigit())
+            .foregroundStyle(color)
+            .padding(.horizontal, 7)
+            .padding(.vertical, 2)
+            .frame(minWidth: 28)
+            .background(color.opacity(0.15), in: Capsule())
     }
 
     /// Forgets every card in the deck (and its subdecks) so the whole deck
@@ -223,6 +269,15 @@ struct DecksView: View {
             if !ids.isEmpty {
                 _ = try await backend.scheduleCardsAsNew(cardIDs: ids)
             }
+            await reload()
+        } catch {
+            actionError = String(describing: error)
+        }
+    }
+
+    private func deleteDeck(_ row: DeckRow) async {
+        do {
+            _ = try await backend.removeDecks(deckIDs: [row.id])
             await reload()
         } catch {
             actionError = String(describing: error)

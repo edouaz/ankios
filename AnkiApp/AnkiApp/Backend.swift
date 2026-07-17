@@ -164,6 +164,15 @@ final class Backend: @unchecked Sendable {
             serializedBytes: await run(.decks, 22, req.serializedData()))
     }
 
+    /// Deletes decks (and their subdecks and cards). Returns the count of
+    /// removed cards.
+    func removeDecks(deckIDs: [Int64]) async throws -> Anki_Collection_OpChangesWithCount {
+        var req = Anki_Decks_DeckIds()
+        req.dids = deckIDs
+        return try Anki_Collection_OpChangesWithCount(
+            serializedBytes: await run(.decks, 16, req.serializedData()))
+    }
+
     /// Card ids matching an Anki search string (e.g. `deck:"French"`).
     func searchCards(_ search: String) async throws -> [Int64] {
         var req = Anki_Search_SearchRequest()
