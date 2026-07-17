@@ -1,0 +1,5 @@
+/Anki.xcframework
+DerivedData/
+.build/
+xcuserdata/
+*.xcuserstate

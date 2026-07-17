@@ -113,10 +113,14 @@ check the proto), `extract_av_tags` (`[sound:...]` audio tags),
 
 ## Step 2 — FFI bridge
 
-- [ ] Create `ios/rsbridge-ios/` (`crate-type = ["staticlib"]`,
+- [x] Create `ios/rsbridge-ios/` (`crate-type = ["staticlib"]`,
       `anki = { path = "../../rslib" }`), add it to the root
       `Cargo.toml` workspace `members`.
-- [ ] `lib.rs` along these lines (adapt by reading `pylib/rsbridge/lib.rs`
+      Also gives it `native-tls`/`rustls` features forwarding to
+      `anki/native-tls` / `anki/rustls` (same pattern as
+      `pylib/rsbridge`), `native-tls` on by default — see the Step 1 note
+      on why a TLS feature is required for `anki` to compile at all.
+- [x] `lib.rs` along these lines (adapt by reading `pylib/rsbridge/lib.rs`
       for the exact error handling — backend errors already come back as
       protobuf bytes):
 
@@ -150,11 +154,13 @@ pub extern "C" fn anki_free_bytes(buf: ByteBuf) { /* rebuild the Vec and drop */
 pub extern "C" fn anki_close_backend(backend: *mut Backend) { /* Box::from_raw and drop */ }
 ```
 
-- [ ] Hand-written C header `rsbridge.h` (4 functions + the struct).
-- [ ] `ios/build-xcframework.sh`: `cargo build --release` for both targets,
+- [x] Hand-written C header `rsbridge.h` (4 functions + the struct).
+      Lives in `ios/rsbridge-ios/include/` alongside a `module.modulemap`
+      so it can be imported as a Swift module in Step 3.
+- [x] `ios/build-xcframework.sh`: `cargo build --release` for both targets,
       then `xcodebuild -create-xcframework -library ... -headers ...`
       → `ios/Anki.xcframework`.
-- [ ] Verify: the script runs end to end and produces the `.xcframework`.
+- [x] Verify: the script runs end to end and produces the `.xcframework`.
 
 ## Step 3 — Xcode project + Swift layer
 

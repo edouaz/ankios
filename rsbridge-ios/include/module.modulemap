@@ -1,0 +1,4 @@
+module Anki {
+    header "rsbridge.h"
+    export *
+}

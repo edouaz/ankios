@@ -1,0 +1,19 @@
+[package]
+name = "rsbridge-ios"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[lib]
+name = "rsbridge_ios"
+crate-type = ["staticlib"]
+path = "src/lib.rs"
+test = false
+
+[dependencies]
+anki = { path = "../../rslib" }
+
+[features]
+default = ["native-tls"]
+native-tls = ["anki/native-tls"]
+rustls = ["anki/rustls"]
