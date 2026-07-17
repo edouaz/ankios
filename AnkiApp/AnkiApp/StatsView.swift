@@ -7,6 +7,7 @@ struct StatsView: View {
     let backend: Backend
 
     @State private var graphs: Anki_Stats_GraphsResponse?
+    @State private var deckDue: [DeckDue]?
     @State private var loadError: Error?
 
     var body: some View {
@@ -21,6 +22,7 @@ struct StatsView: View {
                                     .font(.headline)
                                 HeatmapView(counts: dailyCounts(graphs))
                             }
+                            deckDueSection
                         }
                         .padding()
                     }
@@ -72,6 +74,36 @@ struct StatsView: View {
         .background(color.opacity(0.12), in: .rect(cornerRadius: 14))
     }
 
+    // MARK: Next review by deck
+
+    @ViewBuilder
+    private var deckDueSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Next Review by Deck")
+                .font(.headline)
+            if let deckDue {
+                if deckDue.isEmpty {
+                    Text("No decks yet.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(deckDue) { deck in
+                        HStack {
+                            Text(deck.name)
+                            Spacer()
+                            Text(deck.due)
+                                .foregroundStyle(deck.soon ? Color.green : .secondary)
+                        }
+                        .font(.subheadline)
+                        .padding(.vertical, 2)
+                    }
+                }
+            } else {
+                ProgressView()
+            }
+        }
+    }
+
     // MARK: Data
 
     /// day offset (0 = today, negative = past) → total reviews that day.
@@ -96,7 +128,67 @@ struct StatsView: View {
         } catch {
             loadError = error
         }
+        await loadDeckDue()
     }
+
+    /// For each deck: cards available now (from the tree), else the number of
+    /// days until its next scheduled card (from that deck's future-due graph).
+    private func loadDeckDue() async {
+        deckDue = nil
+        guard let tree = try? await backend.deckTree() else {
+            deckDue = []
+            return
+        }
+        var result: [DeckDue] = []
+        for deck in deckList(tree) {
+            if deck.dueNow > 0 {
+                result.append(DeckDue(id: deck.id, name: deck.name, due: "\(deck.dueNow) due now", soon: true))
+            } else {
+                let next = (try? await backend.graphs(search: "deck:\"\(deck.fullName)\"", days: 365))
+                    .flatMap(nextDueDay)
+                result.append(
+                    DeckDue(id: deck.id, name: deck.name, due: dueLabel(next), soon: (next ?? 99) <= 1))
+            }
+        }
+        deckDue = result
+    }
+
+    private func deckList(_ node: Anki_Decks_DeckTreeNode, prefix: String = "")
+        -> [(id: Int64, name: String, fullName: String, dueNow: Int)]
+    {
+        var out: [(id: Int64, name: String, fullName: String, dueNow: Int)] = []
+        var full = ""
+        if node.level > 0 {
+            full = prefix.isEmpty ? node.name : prefix + "::" + node.name
+            out.append(
+                (node.deckID, node.name, full,
+                    Int(node.newCount + node.learnCount + node.reviewCount)))
+        }
+        let childPrefix = node.level > 0 ? full : prefix
+        for child in node.children {
+            out.append(contentsOf: deckList(child, prefix: childPrefix))
+        }
+        return out
+    }
+
+    /// Smallest future-due day with cards (0 = today, negative = overdue).
+    private func nextDueDay(_ g: Anki_Stats_GraphsResponse) -> Int? {
+        g.futureDue.futureDue.filter { $0.value > 0 }.keys.min().map { Int($0) }
+    }
+
+    private func dueLabel(_ days: Int?) -> String {
+        guard let days else { return "Nothing due" }
+        if days <= 0 { return "Due today" }
+        if days == 1 { return "Tomorrow" }
+        return "In \(days) days"
+    }
+}
+
+private struct DeckDue: Identifiable {
+    let id: Int64
+    let name: String
+    let due: String
+    let soon: Bool
 }
 
 /// GitHub-style calendar heatmap. Columns = weeks (oldest → newest), rows =
