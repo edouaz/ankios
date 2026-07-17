@@ -21,6 +21,7 @@ actor Backend {
         case scheduler = 13
         case cardRendering = 27
         case importExport = 39
+        case stats = 43
         #if DEBUG
             // Only used by the test-data seeding below, not part of the
             // locked v1 RPC list.
@@ -220,6 +221,17 @@ actor Backend {
         req.options = options
         return try Anki_ImportExport_ImportResponse(
             serializedBytes: run(.importExport, 2, req.serializedData()))
+    }
+
+    /// Aggregated stats for the Stats screen. `search: ""` = whole
+    /// collection; `days` bounds the review-history range (the calendar
+    /// heatmap keys `reviews.count` by day offset, 0 = today, negative = past).
+    func graphs(search: String = "", days: UInt32 = 365) throws -> Anki_Stats_GraphsResponse {
+        var req = Anki_Stats_GraphsRequest()
+        req.search = search
+        req.days = days
+        return try Anki_Stats_GraphsResponse(
+            serializedBytes: run(.stats, 2, req.serializedData()))
     }
 
     func syncLogin(username: String, password: String, endpoint: String? = nil) throws

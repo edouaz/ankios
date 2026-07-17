@@ -15,8 +15,12 @@ struct ContentView: View {
                 TabView {
                     DecksView(backend: backend, syncStore: syncStore)
                         .tabItem { Label("Decks", systemImage: "rectangle.stack") }
+                    StatsView(backend: backend)
+                        .tabItem { Label("Stats", systemImage: "chart.bar.xaxis") }
                     AccountView(syncStore: syncStore)
                         .tabItem { Label("Account", systemImage: "person.crop.circle") }
+                    SettingsView()
+                        .tabItem { Label("Settings", systemImage: "gearshape") }
                 }
             } else if let openError {
                 ContentUnavailableView(

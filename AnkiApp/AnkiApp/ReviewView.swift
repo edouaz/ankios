@@ -17,6 +17,7 @@ private func concat(_ nodes: [Anki_CardRendering_RenderedTemplateNode]) -> Strin
 struct ReviewView: View {
     let backend: Backend
 
+    @AppStorage("hapticsEnabled") private var hapticsEnabled = true
     @State private var queue: Anki_Scheduler_QueuedCards?
     @State private var rendered: Anki_CardRendering_RenderCardResponse?
     @State private var showingAnswer = false
@@ -85,11 +86,13 @@ struct ReviewView: View {
                         }
                     }
                 }
+                .overlay { CelebrationView(hapticsEnabled: hapticsEnabled) }
             } else {
                 ProgressView()
             }
         }
-        .sensoryFeedback(.success, trigger: answeredCount)
+        // nil suppresses the haptic entirely when the user turns it off.
+        .sensoryFeedback(trigger: answeredCount) { _, _ in hapticsEnabled ? .success : nil }
         .task {
             try? AVAudioSession.sharedInstance().setCategory(.playback)
             mediaSchemeHandler = MediaSchemeHandler(mediaFolderPath: backend.mediaFolderPath)

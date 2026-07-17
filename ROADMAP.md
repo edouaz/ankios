@@ -465,6 +465,64 @@ protocol's ORIGINAL_SIZE header). Needs a live retest to confirm.
       "missing original size"?) and against a self-hosted
       `anki --syncserver`.
 
+## Step 4d — Settings, Stats, notifications, celebration, donation (2026-07-17)
+
+User-requested batch. Two new tabs (Stats, Settings) added to `ContentView`'s
+`TabView` (now Decks / Stats / Account / Settings).
+
+- [x] **Settings** (`SettingsView.swift`): no custom store — plain
+      `@AppStorage` (UserDefaults) so every option is read on launch and
+      written the instant it changes. Options: **Haptics** on/off (default
+      on), **Daily Reminder** on/off + time. `@AppStorage("hapticsEnabled")`
+      is read with the *same key* in `ReviewView`, which gates its
+      `.sensoryFeedback` via the closure form (`{ _, _ in enabled ? .success
+      : nil }`) — nil suppresses the tap entirely.
+- [x] **Donation** (`SettingsView.swift`): a `Link` opening a Ko-fi page in
+      Safari. URL is a single top-of-file constant `donationURL` —
+      **replace `YOUR_HANDLE`** with your Ko-fi handle. External link, not
+      StoreKit: simplest for a personal/sideloaded app.
+- [x] **Notifications** (`Notifications.swift`): one repeating daily local
+      notification via `UNUserNotificationCenter` +
+      `UNCalendarNotificationTrigger`. Requests permission on enable;
+      returns whether it scheduled so `SettingsView` flips the toggle back
+      if permission was denied. No Info.plist key or background mode needed.
+      ponytail: static reminder text, not a live due count — a live count
+      needs `BGTaskScheduler` (UX backlog #14).
+- [x] **Celebration** (`Celebration.swift`): a one-shot SwiftUI confetti
+      burst overlaid on the Review "All Done" screen when a deck's queue
+      empties. `allowsHitTesting(false)` so it never blocks the Undo button;
+      success haptic gated on the same setting.
+- [x] **Stats** (`StatsView.swift`): `graphs` RPC (service **43**, method
+      **2**, `GraphsRequest{search, days}` → `GraphsResponse`, added to
+      `Backend.swift`). Summary tiles (reviews today, today's retention,
+      current streak, reviews/year) + a GitHub-style calendar **heatmap**
+      built natively from `reviews.count` (`map<int32, Reviews>`, keyed by
+      day offset — 0 = today, negative = past, confirmed in
+      `rslib/src/stats/graphs/reviews.rs`; per-day total =
+      learn+relearn+young+mature+filtered).
+- [x] **Security / read-write check**: no secrets committed (password is a
+      `SecureField` over local state, hkey only ever in Keychain and cleared
+      on sign-out); debug test-data seeding stays `#if DEBUG` at both call
+      site and definition, so release builds strip it. Sync state
+      (hkey/username/endpoint) read on launch and written on change was
+      already correct (Step 4/4c) — unchanged here; the live "missing
+      original size" AnkiWeb blocker (Step 4c) is still open and untouched.
+- [x] Verify: builds clean for the arm64 simulator (iPhone 17 Pro).
+- [ ] Verify live on device: haptics/notifications/confetti and real heatmap
+      data need a physical run (Simulator can't confirm haptics; notifications
+      need the permission grant).
+
+**App Store reality (asked for "publishable, free, no extra pay"):** App
+Store *submission* requires the paid Apple Developer Program ($99/yr) — it
+can't be done for free. The free path is **sideload to your own iPhone** with
+a free Apple ID (7-day signing; re-run from Xcode weekly). The project
+already carries `DEVELOPMENT_TEAM`/automatic signing and an iPhone-only
+target, so that path works today. The only extra thing a paid App Store
+submission would need beyond signing is a **`PrivacyInfo.xcprivacy`** manifest
+declaring the UserDefaults "required-reason" API — deliberately not added now
+(inert for sideload, and adding it means editing the hand-authored pbxproj
+Resources phase); add it if/when you enroll.
+
 ## Step 5 — Later, only once milestone 4 is green
 
 Undo, mark/suspend/bury from the reviewer, card editor, browser/search,
