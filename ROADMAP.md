@@ -539,6 +539,30 @@ service 11 methods 6/7) editing new/day + reviews/day across every preset,
 passing collection-level flags (fsrs etc.) back unchanged. Verified in
 Simulator: Settings shows real config values (30/200) read via the new RPC.
 
+## Step 4e — Deck delete + decks-screen polish (2026-07-18)
+
+User asked for delete/archive of decks plus general UI/UX improvement.
+**Archive**: rslib has no deck-archive concept — the RPC surface offers
+delete (`remove_decks`) only. The closest approximation (suspend every
+card in the deck) would leave the "archived" deck visually identical to a
+finished one, so it was skipped; delete covers the request.
+
+- [x] `Backend.removeDecks(deckIDs:)` — service 7, method 16
+      (`DeckIds` → `OpChangesWithCount`), indices from
+      `out/pylib/anki/_backend_generated.py` as usual.
+- [x] `DecksView`: **Delete** swipe action (destructive, leading position
+      on the trailing edge) with a confirmation alert warning that
+      subdecks and cards go too; Restart keeps its orange swipe slot.
+      Long-press **context menu** (Study / Restart / Delete) mirrors the
+      swipe actions for discoverability.
+- [x] Decks-screen polish: due counters are now tinted **capsule badges**
+      (monospaced digits, semantic blue/orange/green); decks with nothing
+      due show a quiet `checkmark.circle` instead of an empty gap
+      (with an accessibility label).
+- [x] Verify: builds clean for the arm64 simulator (iPhone 17 Pro).
+- [ ] Verify on simulator/device: delete a seeded deck, confirm it
+      disappears and the cards are gone after reload.
+
 ## Step 5 — Later, only once milestone 4 is green
 
 Undo, mark/suspend/bury from the reviewer, card editor, browser/search,
