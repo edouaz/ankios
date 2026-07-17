@@ -14,6 +14,18 @@ pub struct ByteBuf {
     len: usize,
 }
 
+/// proto3 messages with only default-valued fields serialize to 0 bytes, and
+/// callers (e.g. Swift's `Data.withUnsafeBytes` on an empty `Data`) may then
+/// hand back a null pointer, which `slice::from_raw_parts` disallows even for
+/// a zero-length slice.
+unsafe fn slice_or_empty<'a>(ptr: *const u8, len: usize) -> &'a [u8] {
+    if len == 0 {
+        &[]
+    } else {
+        unsafe { std::slice::from_raw_parts(ptr, len) }
+    }
+}
+
 fn to_buf(v: Vec<u8>) -> ByteBuf {
     let mut v = v;
     v.shrink_to_fit();
@@ -28,7 +40,7 @@ fn to_buf(v: Vec<u8>) -> ByteBuf {
 /// Returns null on error (the init message failed to decode).
 #[no_mangle]
 pub unsafe extern "C" fn anki_open_backend(init: *const u8, len: usize) -> *mut Backend {
-    let init_msg = unsafe { std::slice::from_raw_parts(init, len) };
+    let init_msg = unsafe { slice_or_empty(init, len) };
     match init_backend(init_msg) {
         Ok(backend) => Box::into_raw(Box::new(backend)),
         Err(_) => std::ptr::null_mut(),
@@ -47,7 +59,7 @@ pub unsafe extern "C" fn anki_run_command(
     output: *mut ByteBuf,
 ) -> i32 {
     let backend = unsafe { &*backend };
-    let in_bytes = unsafe { std::slice::from_raw_parts(input, input_len) };
+    let in_bytes = unsafe { slice_or_empty(input, input_len) };
     let (buf, code) = match backend.run_service_method(service, method, in_bytes) {
         Ok(bytes) => (to_buf(bytes), 0),
         Err(bytes) => (to_buf(bytes), 1),

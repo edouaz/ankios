@@ -164,17 +164,38 @@ pub extern "C" fn anki_close_backend(backend: *mut Backend) { /* Box::from_raw a
 
 ## Step 3 — Xcode project + Swift layer
 
-- [ ] SwiftUI project `ios/AnkiApp`: iOS 26 minimum, iPhone only, links
+- [x] SwiftUI project `ios/AnkiApp`: iOS 26 minimum, iPhone only, links
       `Anki.xcframework` + the header via a module map or bridging header.
-- [ ] swift-protobuf via SPM. `ios/gen-proto.sh`: protoc + the swift plugin
+      `AnkiApp.xcodeproj/project.pbxproj` was hand-authored (via a
+      throwaway generation script, not checked in) rather than created
+      through Xcode's GUI — no GUI access in this environment. Classic
+      `PBXGroup`/`PBXFileReference` object graph (objectVersion 56), not
+      the newer Xcode 16 file-system-synchronized groups, for maximum
+      compatibility. `CODE_SIGN_IDENTITY = "-"` (ad-hoc/"Sign to Run
+      Locally") since there's no Apple dev team configured yet — fine for
+      Simulator, but Step 4's physical-device milestone will need a team
+      picked in Xcode (manual, needs the user's Apple ID).
+      The xcframework's headers/module map are auto-exposed by Xcode when
+      linked (confirmed empirically — an extra explicit
+      `HEADER_SEARCH_PATHS` caused a "redefinition of module 'Anki'"
+      error and had to be removed).
+- [x] swift-protobuf via SPM. `ios/gen-proto.sh`: protoc + the swift plugin
       on the `proto/anki/` files actually used (not the whole folder if
       that avoids import headaches) → `ios/AnkiApp/Generated/`.
-- [ ] `Backend.swift` — an `actor` (FFI calls are blocking, never make them
+      Went with the whole `proto/anki/` folder (25 files): the protos
+      cross-import each other heavily and protoc/protoc-gen-swift are
+      fast, so curating an exact v1 subset wasn't worth the effort.
+      `protoc-gen-swift` installed via `brew install swift-protobuf`.
+- [x] `Backend.swift` — an `actor` (FFI calls are blocking, never make them
       on the main thread):
       - `init()`: creates `Application Support/anki/` (collection + media),
         builds the protobuf init message and calls `anki_open_backend`.
         Look at how `pylib/anki/_backend.py` builds this message (preferred
         language, etc.) and reproduce the minimum.
+        `init` is `async` (not just `throws`) so it runs on the actor's
+        executor and can call other actor-isolated methods (like opening
+        the collection) synchronously — a plain sync `init` is treated as
+        nonisolated by Swift 6's concurrency checker.
       - `run(_ service: Service, _ method: UInt32, _ input: Data) throws -> Data`
         — if the return code is 1, decode `BackendError` and throw it as a
         typed Swift error.
@@ -182,8 +203,22 @@ pub extern "C" fn anki_close_backend(backend: *mut Backend) { /* Box::from_raw a
         `out/pylib/anki/_backend_generated.py`.
       - The ~12 v1 RPCs as typed methods on top
         (`func deckTree() async throws -> DeckTreeNode`, etc.).
-- [ ] Verify (milestone 2): simulator app opens an empty collection and
+      Two Rust-side FFI hardening fixes needed along the way (in
+      `rsbridge-ios/src/lib.rs`): proto3 messages with only default
+      values serialize to 0 bytes, and Swift's `Data.withUnsafeBytes` on
+      empty `Data` can hand back a null pointer — `slice::from_raw_parts`
+      disallows that even for a 0-length slice, so `anki_open_backend`/
+      `anki_run_command` now go through a `slice_or_empty` helper.
+- [x] Verify (milestone 2): simulator app opens an empty collection and
       prints the decoded `deck_tree` to the console. No UI yet.
+      Confirmed on iPhone 17 Pro Simulator (iOS 26.4):
+      `deck_tree: AnkiApp.Anki_Decks_DeckTreeNode: children { deck_id: 1
+      name: "Default" level: 1 collapsed: true }`. Needed
+      `xcrun simctl launch --console` (not `log show`, which doesn't
+      capture plain `print()`/stdout) plus an explicit
+      `setvbuf(stdout, nil, _IONBF, 0)` in `ContentView.swift`, since
+      stdout is fully-buffered off a TTY and a `simctl terminate` (SIGTERM)
+      doesn't flush it.
 
 ## Step 4 — v1 UI
 
