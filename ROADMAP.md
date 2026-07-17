@@ -75,8 +75,8 @@ check the proto), `extract_av_tags` (`[sound:...]` audio tags),
       install Xcode first, Claude cannot do it**)
 - [x] `rustup` installed, then
       `rustup target add aarch64-apple-ios aarch64-apple-ios-sim`
-- [ ] `git init` inside `ios/` + first commit (this file)
-- [ ] Verify: `xcodebuild -version` (must show Xcode 26.x) and
+- [x] `git init` inside `ios/` + first commit (this file)
+- [x] Verify: `xcodebuild -version` (must show Xcode 26.x) and
       `rustup target list --installed` (must list both iOS targets)
 
 ## Step 1 — Cross-compile rslib (risk #1, do this before any Swift)
