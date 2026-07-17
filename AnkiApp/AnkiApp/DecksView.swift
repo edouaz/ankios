@@ -2,6 +2,7 @@
 // License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
 
 import SwiftUI
+import UniformTypeIdentifiers
 
 private struct DeckRow: Identifiable {
     let id: Int64
@@ -37,6 +38,9 @@ struct DecksView: View {
     @State private var loadError: Error?
     @State private var reviewingDeckID: Int64?
     @State private var showingLoginSheet = false
+    @State private var showingImporter = false
+    @State private var isImporting = false
+    @State private var importResult: String?
 
     var body: some View {
         NavigationStack {
@@ -75,9 +79,36 @@ struct DecksView: View {
                 ReviewView(backend: backend)
             }
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    if isImporting {
+                        ProgressView()
+                    } else {
+                        Button {
+                            showingImporter = true
+                        } label: {
+                            Image(systemName: "square.and.arrow.down")
+                        }
+                    }
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     syncIndicator
                 }
+            }
+            .fileImporter(
+                isPresented: $showingImporter,
+                // .apkg has no system UTType; the dynamic one still lets
+                // the picker open deck packages from Files/iCloud.
+                allowedContentTypes: [UTType(filenameExtension: "apkg") ?? .data]
+            ) { result in
+                Task { await importPackage(result) }
+            }
+            .alert(
+                "Import", isPresented: Binding(
+                    get: { importResult != nil }, set: { if !$0 { importResult = nil } })
+            ) {
+                Button("OK") { importResult = nil }
+            } message: {
+                Text(importResult ?? "")
             }
             .sheet(isPresented: $showingLoginSheet) {
                 SyncLoginSheet(syncStore: syncStore)
@@ -149,6 +180,34 @@ struct DecksView: View {
             rows = flatten(tree)
         } catch {
             loadError = error
+        }
+    }
+
+    private func importPackage(_ result: Result<URL, Error>) async {
+        isImporting = true
+        defer { isImporting = false }
+        do {
+            let url = try result.get()
+            // The picked URL is outside our sandbox and only readable while
+            // security-scoped access is held; the Rust side opens the path
+            // itself later, so copy the file into tmp first.
+            let accessing = url.startAccessingSecurityScopedResource()
+            defer { if accessing { url.stopAccessingSecurityScopedResource() } }
+            let tmp = FileManager.default.temporaryDirectory
+                .appendingPathComponent(url.lastPathComponent)
+            try? FileManager.default.removeItem(at: tmp)
+            try FileManager.default.copyItem(at: url, to: tmp)
+            defer { try? FileManager.default.removeItem(at: tmp) }
+
+            let log = try await backend.importAnkiPackage(packagePath: tmp.path).log
+            importResult =
+                "\(log.new.count) new, \(log.updated.count) updated, "
+                + "\(log.duplicate.count) duplicates skipped."
+            await reload()
+        } catch let error as Backend.BackendCallError {
+            importResult = "Import failed: \(error.message)"
+        } catch {
+            importResult = "Import failed: \(error.localizedDescription)"
         }
     }
 

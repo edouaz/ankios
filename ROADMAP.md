@@ -405,9 +405,73 @@ next time it happens.
       this is validated. Check on desktop that nothing got corrupted.
       Blocked on the sync error investigated above.
 
+## Step 4b — APKG import (user-requested, added 2026-07-17)
+
+Import `.apkg` deck packages picked from the Files app. All the real work
+(unzip, schema, media extraction, dedup) already lives in rslib's
+`import_anki_package` — this is one RPC plus a file picker.
+
+- [x] `Backend.importAnkiPackage(packagePath:)` — service 39
+      (`importexport`), method 2, with options fetched from
+      `get_import_anki_package_presets` (method 3), same defaults as the
+      desktop import dialog. Indices from
+      `out/pylib/anki/_backend_generated.py` as usual.
+- [x] `DecksView`: toolbar import button (`square.and.arrow.down`) →
+      `.fileImporter` (dynamic `UTType(filenameExtension: "apkg")` — apkg
+      has no system UTType). The picked URL is security-scoped and the
+      Rust side opens the path itself later, so the file is copied into
+      tmp first, imported, then deleted. Result alert shows
+      new/updated/duplicate counts from `ImportResponse.log`; a spinner
+      replaces the button while importing.
+- [x] Verify: builds clean for the arm64 simulator
+      (`xcodebuild -destination 'platform=iOS Simulator,name=iPhone 17
+      Pro'` — the generic simulator destination fails: the xcframework
+      intentionally has no x86_64 slice).
+- [ ] Verify on device/simulator with a real .apkg (needs a manual file
+      drop — untested beyond the build).
+
 ## Step 5 — Later, only once milestone 4 is green
 
 Undo, mark/suspend/bury from the reviewer, card editor, browser/search,
 stats, FSRS settings, widgets/App Intents. None of this before then. If the
 user explicitly asks for one of these, first add it here as a new checkable
 step.
+
+## UX backlog (candidate improvements, roughly ordered by value/effort)
+
+Not scheduled — a menu to pick from once milestones 3/4 are green. Most of
+these are "one RPC + a small view" because rslib already implements the
+logic.
+
+Quick wins (hours each):
+1. **Undo** in the reviewer — `undo`/`get_undo_status` (wrong-tap recovery;
+   biggest single UX hole right now).
+2. **Mark / suspend / bury** from the reviewer toolbar — one RPC each,
+   standard swipe/menu affordances.
+3. **Congrats screen** — "deck finished" state with learn-ahead info
+   (`congrats_info` RPC) instead of just popping back to the deck list.
+4. **Deck collapse/expand** — the tree already carries `collapsed`; v1
+   flattens it. Native `DisclosureGroup` gets this almost free.
+5. **Tap-to-reveal zones / swipe answers** in the reviewer (AnkiMobile
+   muscle memory: swipe = Again/Good).
+6. **App Intents / widget** — "cards due today" on the home screen, review
+   from a widget tap.
+
+Medium (a day or two each):
+7. **Card editor** — edit the current note's fields from the reviewer
+   (`update_notes`); fixing a typo mid-review currently requires the
+   desktop.
+8. **Add note** — `add_note` with notetype/deck pickers; the debug seeding
+   code already proves the RPC path.
+9. **Browser/search** — `search_cards` + a list; even a bare "find card,
+   suspend/edit it" covers most needs.
+10. **Statistics** — `card_stats`/`graphs` RPCs; start with the simple
+    daily-counts graph, not the full desktop stats page.
+11. **Deck options** — per-deck new/review limits (`get/update_deck_configs`).
+12. **TTS tags** — currently skipped in audio extraction; `AVSpeechSynthesizer`
+    maps well onto the tag payload.
+
+Larger:
+13. **Image occlusion review support** — needs the IO web assets bundled.
+14. **Background sync** via `BGTaskScheduler` + notifications for due cards.
+15. **iPad / multi-column layout** (currently iPhone-only).

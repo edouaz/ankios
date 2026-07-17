@@ -20,6 +20,7 @@ actor Backend {
         case decks = 7
         case scheduler = 13
         case cardRendering = 27
+        case importExport = 39
         #if DEBUG
             // Only used by the test-data seeding below, not part of the
             // locked v1 RPC list.
@@ -181,6 +182,19 @@ actor Backend {
         req.questionSide = questionSide
         return try Anki_CardRendering_ExtractAvTagsResponse(
             serializedBytes: run(.cardRendering, 3, req.serializedData()))
+    }
+
+    /// Imports a `.apkg` deck package (notes, cards, decks, media) into the
+    /// open collection. Options come from the backend's saved import presets
+    /// — the same defaults the desktop import dialog starts from.
+    func importAnkiPackage(packagePath: String) throws -> Anki_ImportExport_ImportResponse {
+        let options = try Anki_ImportExport_ImportAnkiPackageOptions(
+            serializedBytes: run(.importExport, 3, Data()))
+        var req = Anki_ImportExport_ImportAnkiPackageRequest()
+        req.packagePath = packagePath
+        req.options = options
+        return try Anki_ImportExport_ImportResponse(
+            serializedBytes: run(.importExport, 2, req.serializedData()))
     }
 
     func syncLogin(username: String, password: String) throws -> Anki_Sync_SyncAuth {
