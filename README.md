@@ -36,6 +36,16 @@ No reimplemented scheduler, no half-compatible sync — the actual [`anki`](http
 
 Everything crosses the Rust↔Swift boundary as protobuf bytes, mirroring how Anki's own Python layer talks to the backend. The Rust side is packaged as `Anki.xcframework` (device + simulator).
 
+## 📲 Install (no build required)
+
+Grab `Ankios.ipa` from the [latest release](https://github.com/edouaz/ankios/releases/latest) and sideload it onto your iPhone:
+
+1. Install [AltStore](https://altstore.io) (or [Sideloadly](https://sideloadly.io)) on your Mac/PC and pair it with your iPhone.
+2. Open the `.ipa` with it and sign in with your (free) Apple ID — it signs the app for your device.
+3. Trust the developer profile on the phone: **Settings → General → VPN & Device Management**.
+
+> ℹ️ The `.ipa` is unsigned (this app isn't on the App Store), which is exactly what sideloading tools expect. With a free Apple ID the app must be re-signed every 7 days — AltStore does this automatically. Requires iOS 26+.
+
 ## 🚀 Building
 
 This repo contains only the iOS app. It builds against upstream Anki's source, which you check out next to it.
