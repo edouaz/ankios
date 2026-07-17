@@ -9,6 +9,7 @@ struct SyncLoginSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var username = ""
     @State private var password = ""
+    @State private var customServer = ""
     @State private var isLoggingIn = false
     @State private var error: Error?
 
@@ -24,8 +25,22 @@ struct SyncLoginSheet: View {
                     SecureField("Password", text: $password)
                         .textContentType(.password)
                 }
+                Section {
+                    TextField("http://192.168.1.10:8080/", text: $customServer)
+                        .keyboardType(.URL)
+                        .autocorrectionDisabled()
+                        .textInputAutocapitalization(.never)
+                } header: {
+                    Text("Self-Hosted Server (Optional)")
+                } footer: {
+                    Text(
+                        "Leave empty to sync with AnkiWeb (free account at ankiweb.net). "
+                            + "Or run your own server — it's built into Anki: "
+                            + "`anki --syncserver` on any desktop machine.")
+                }
             }
-            .navigationTitle("Sign In to AnkiWeb")
+            .onAppear { customServer = syncStore.customEndpoint ?? "" }
+            .navigationTitle("Sign In")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -55,6 +70,8 @@ struct SyncLoginSheet: View {
         isLoggingIn = true
         defer { isLoggingIn = false }
         do {
+            let server = customServer.trimmingCharacters(in: .whitespaces)
+            syncStore.customEndpoint = server.isEmpty ? nil : server
             try await syncStore.signIn(username: username, password: password)
             dismiss()
         } catch {

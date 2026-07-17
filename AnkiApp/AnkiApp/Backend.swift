@@ -115,6 +115,16 @@ actor Backend {
             serializedBytes: run(.collection, 0, req.serializedData()))
     }
 
+    func getUndoStatus() throws -> Anki_Collection_UndoStatus {
+        try Anki_Collection_UndoStatus(
+            serializedBytes: run(.collection, 7, Data()))
+    }
+
+    func undo() throws -> Anki_Collection_OpChangesAfterUndo {
+        try Anki_Collection_OpChangesAfterUndo(
+            serializedBytes: run(.collection, 8, Data()))
+    }
+
     func closeCollection(downgradeToSchema11: Bool = false) throws -> Anki_Generic_Empty {
         var req = Anki_Collection_CloseCollectionRequest()
         req.downgradeToSchema11 = downgradeToSchema11
@@ -163,6 +173,21 @@ actor Backend {
         ).vals
     }
 
+    func congratsInfo() throws -> Anki_Scheduler_CongratsInfoResponse {
+        try Anki_Scheduler_CongratsInfoResponse(
+            serializedBytes: run(.scheduler, 11, Data()))
+    }
+
+    func buryOrSuspendCards(
+        cardIds: [Int64], mode: Anki_Scheduler_BuryOrSuspendCardsRequest.Mode
+    ) throws -> Anki_Collection_OpChangesWithCount {
+        var req = Anki_Scheduler_BuryOrSuspendCardsRequest()
+        req.cardIds = cardIds
+        req.mode = mode
+        return try Anki_Collection_OpChangesWithCount(
+            serializedBytes: run(.scheduler, 14, req.serializedData()))
+    }
+
     func renderExistingCard(
         cardId: Int64, browser: Bool = false, partialRender: Bool = false
     ) throws -> Anki_CardRendering_RenderCardResponse {
@@ -197,10 +222,15 @@ actor Backend {
             serializedBytes: run(.importExport, 2, req.serializedData()))
     }
 
-    func syncLogin(username: String, password: String) throws -> Anki_Sync_SyncAuth {
+    func syncLogin(username: String, password: String, endpoint: String? = nil) throws
+        -> Anki_Sync_SyncAuth
+    {
         var req = Anki_Sync_SyncLoginRequest()
         req.username = username
         req.password = password
+        if let endpoint {
+            req.endpoint = endpoint
+        }
         return try Anki_Sync_SyncAuth(
             serializedBytes: run(.sync, 3, req.serializedData()))
     }

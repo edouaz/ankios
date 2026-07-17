@@ -430,6 +430,41 @@ Import `.apkg` deck packages picked from the Files app. All the real work
 - [ ] Verify on device/simulator with a real .apkg (needs a manual file
       drop — untested beyond the build).
 
+## Step 4c — Reviewer quick wins + sync endpoint fix (2026-07-17)
+
+**Login-system analysis** (user asked whether the sync API is private):
+it is not. The whole protocol — client *and* server — is open source in
+`rslib/src/sync/` (`http_server/` is a complete self-hostable sync server,
+shipped inside Anki desktop as `anki --syncserver`). AnkiWeb accounts are
+free. Nothing in the login path requires a paid or private API.
+
+**Real bug found during that analysis**: `SyncStore` ignored
+`new_endpoint`. AnkiWeb load-balances accounts onto numbered hosts and
+returns the assigned host in `SyncAuth.endpoint` (login) and
+`new_endpoint` (status/collection responses); the desktop persists it
+(`profiles.py: sync_endpoint()/set_current_sync_url()`) and sends it on
+every subsequent request. We never did, so every request went to the
+generic `sync.ankiweb.net` — a plausible root cause for the milestone-4
+"missing original size" error (a response from the wrong host missing our
+protocol's ORIGINAL_SIZE header). Needs a live retest to confirm.
+
+- [x] `SyncStore`: persist server-assigned endpoint (UserDefaults, not a
+      secret), send it in every `SyncAuth`, clear on sign-out; custom
+      self-hosted URL support (`customEndpoint`, takes effect when no
+      assigned endpoint).
+- [x] `SyncLoginSheet`: optional "Self-Hosted Server" URL field →
+      `sync_login`'s `endpoint` param.
+- [x] Reviewer: **Undo** toolbar button (`get_undo_status` 3/7, `undo`
+      3/8), disabled when nothing to undo; **Bury/Suspend** menu
+      (`bury_or_suspend_cards` 13/14, BURY_USER / SUSPEND).
+- [x] **Congrats screen**: queue-empty state now uses `congrats_info`
+      (13/11) — next-learning-card countdown, buried-cards note, and an
+      Undo action instead of a dead end.
+- [x] Verify: builds clean for the arm64 simulator.
+- [ ] Verify live: sync against AnkiWeb (does the endpoint fix cure
+      "missing original size"?) and against a self-hosted
+      `anki --syncserver`.
+
 ## Step 5 — Later, only once milestone 4 is green
 
 Undo, mark/suspend/bury from the reviewer, card editor, browser/search,
@@ -444,12 +479,11 @@ these are "one RPC + a small view" because rslib already implements the
 logic.
 
 Quick wins (hours each):
-1. **Undo** in the reviewer — `undo`/`get_undo_status` (wrong-tap recovery;
-   biggest single UX hole right now).
-2. **Mark / suspend / bury** from the reviewer toolbar — one RPC each,
-   standard swipe/menu affordances.
-3. **Congrats screen** — "deck finished" state with learn-ahead info
-   (`congrats_info` RPC) instead of just popping back to the deck list.
+1. ~~**Undo** in the reviewer~~ — done in Step 4c.
+2. ~~**Suspend / bury** from the reviewer toolbar~~ — done in Step 4c
+   (mark-as-tag deferred: low value until there's a browser to find
+   marked cards with).
+3. ~~**Congrats screen**~~ — done in Step 4c.
 4. **Deck collapse/expand** — the tree already carries `collapsed`; v1
    flattens it. Native `DisclosureGroup` gets this almost free.
 5. **Tap-to-reveal zones / swipe answers** in the reviewer (AnkiMobile
