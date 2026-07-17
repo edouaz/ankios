@@ -4,9 +4,7 @@
 import SwiftUI
 
 struct SyncLoginSheet: View {
-    let backend: Backend
-    /// Called with the new hkey once login succeeds.
-    let onLoggedIn: (String) -> Void
+    var syncStore: SyncStore
 
     @Environment(\.dismiss) private var dismiss
     @State private var username = ""
@@ -43,13 +41,13 @@ struct SyncLoginSheet: View {
                 }
             }
             .alert(
-                "Couldn't Sign In", isPresented: .constant(error != nil),
-                actions: {
-                    Button("OK") { error = nil }
-                },
-                message: {
-                    Text(String(describing: error))
-                })
+                "Couldn't Sign In",
+                isPresented: Binding(get: { error != nil }, set: { if !$0 { error = nil } })
+            ) {
+                Button("OK") { error = nil }
+            } message: {
+                Text(String(describing: error))
+            }
         }
     }
 
@@ -57,8 +55,7 @@ struct SyncLoginSheet: View {
         isLoggingIn = true
         defer { isLoggingIn = false }
         do {
-            let auth = try await backend.syncLogin(username: username, password: password)
-            onLoggedIn(auth.hkey)
+            try await syncStore.signIn(username: username, password: password)
             dismiss()
         } catch {
             self.error = error

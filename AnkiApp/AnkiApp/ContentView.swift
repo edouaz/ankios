@@ -3,15 +3,21 @@
 
 import SwiftUI
 
-/// Opens the (only) collection once at launch, then shows the deck list.
+/// Opens the (only) collection once at launch, then shows the tab bar.
 struct ContentView: View {
     @State private var backend: Backend?
+    @State private var syncStore: SyncStore?
     @State private var openError: Error?
 
     var body: some View {
         Group {
-            if let backend {
-                DecksView(backend: backend)
+            if let backend, let syncStore {
+                TabView {
+                    DecksView(backend: backend, syncStore: syncStore)
+                        .tabItem { Label("Decks", systemImage: "rectangle.stack") }
+                    AccountView(syncStore: syncStore)
+                        .tabItem { Label("Account", systemImage: "person.crop.circle") }
+                }
             } else if let openError {
                 ContentUnavailableView(
                     "Couldn't Open Collection",
@@ -26,7 +32,9 @@ struct ContentView: View {
             // killed rather than exiting cleanly (verification only).
             setvbuf(stdout, nil, _IONBF, 0)
             do {
-                backend = try await Backend()
+                let b = try await Backend()
+                backend = b
+                syncStore = SyncStore(backend: b)
             } catch {
                 openError = error
             }

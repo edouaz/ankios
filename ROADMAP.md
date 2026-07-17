@@ -344,13 +344,66 @@ and a synthesized sine-tone WAV straight into `collection.media/`. Called
 from `DecksView`'s `.task` in Debug builds only — never compiled into a
 release build. This is what surfaced both bugs above: without it there was
 no way to locally exercise Review with real content before milestone 4.
-      Real AnkiWeb login itself is unverified (needs real credentials —
-      see milestone 4).
+
+**App icon + Account tab** (requested after the above): a simple app icon
+(gradient stacked-cards mark, generated programmatically via a throwaway
+Core Graphics script, not checked in — see `Assets.xcassets/AppIcon.
+appiconset/icon-1024.png`, single-size iOS 26-style icon, no alpha channel
+per Apple's requirement) plus a bottom `TabView` (Decks / Account) so
+there's a place to see sign-in state and what a sync would pull.
+`ContentView` now builds a `Backend` + one shared `SyncStore`
+(`@Observable`, `SyncStore.swift`) and hands both to a `TabView`, instead
+of `DecksView` owning sync state alone — `AccountView` needed the same
+state (`hkey`/`isSyncing`/`lastError`/`lastStatus`), so this crossed from
+"premature abstraction" to "actually shared," and `DecksView`/
+`SyncLoginSheet` were refactored to read/drive it instead of duplicating
+sync logic. `AccountView` shows the signed-in account, a "Check for
+Updates" button (finally exercises the `sync_status` RPC, in the v1 list
+since Step 4 but never called until now), a manual "Sync Now", and the
+last error in full. Also fixed a latent bug while touching
+`SyncLoginSheet`: its error alert used `isPresented: .constant(error !=
+nil)`, a non-interactive binding that doesn't dismiss properly — now a
+real two-way `Binding` like the other alerts in this codebase.
+
+**Sync error investigation** (`HttpError { code: 400, context: "missing
+original size" }`, kind `syncOtherError`, reported by the user after
+signing in with a real AnkiWeb account and syncing): this is a client-side
+error `rslib/src/sync/http_client/io_monitor.rs` fabricates (`or_bad_request`,
+which is why the "400" isn't necessarily AnkiWeb's own status code) when an
+HTTP response comes back with a *successful* status but is missing the
+custom `ORIGINAL_SIZE` header our zstd-streaming sync protocol needs on
+every request/response — used for every sync RPC (login, meta, collection,
+media, full sync), not just one step.
+Reproduced independently in this dev sandbox too — with a different,
+unexplained sync session (not one I logged into; found and immediately
+cleared via `xcrun simctl erase`, see git history for exactly what was
+checked before wiping it) — which rules out this being specific to the
+user's network, account, or credentials. Confirmed real network
+connectivity to `sync.ankiweb.net` works fine from this environment
+(`curl`: correct DNS, valid TLS, real `nginx` response). Read through
+`rslib/src/sync/` looking for a cause within reach: the shared
+`Client::builder().http1_only().build()` in `rslib/src/backend/mod.rs`
+doesn't set an explicit redirect policy, and `meta_with_redirect()`'s
+custom 308-handling would be silently bypassed by reqwest's default
+auto-follow — a plausible lead, but that code path is shared verbatim with
+the official desktop/mobile clients, so if it were simply broken this way
+it should affect all Anki clients, not just this one, which doesn't match
+what's actually happening in the wild.
+**Root cause is unresolved and lives inside `rslib/src/sync/`, which
+Working rule 5 says never gets modified.** I can't fix this myself within
+that constraint, and can't fully diagnose a live protocol failure without
+either packet-level access or the ability to compare against an official
+client's request against the same account. Needs a decision from the user
+on how to proceed: get explicit sign-off to make a scoped, justified rslib
+change (e.g. an explicit redirect policy) and test it, try again later in
+case it's transient on AnkiWeb's end, or investigate with a packet capture
+next time it happens.
 - [ ] Verify (milestone 3): review a real card (with image and audio) on a
       physical iPhone.
 - [ ] Verify (milestone 4): round-trip sync with AnkiWeb **on a test
       account or a copy of the account** — never the real account until
       this is validated. Check on desktop that nothing got corrupted.
+      Blocked on the sync error investigated above.
 
 ## Step 5 — Later, only once milestone 4 is green
 

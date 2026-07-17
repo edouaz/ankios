@@ -31,13 +31,11 @@ private func flatten(_ node: Anki_Decks_DeckTreeNode, level: Int = 0) -> [DeckRo
 
 struct DecksView: View {
     let backend: Backend
+    var syncStore: SyncStore
 
     @State private var rows: [DeckRow]?
     @State private var loadError: Error?
     @State private var reviewingDeckID: Int64?
-    @State private var hkey: String? = Keychain.loadHkey()
-    @State private var isSyncing = false
-    @State private var syncError: Error?
     @State private var showingLoginSheet = false
 
     var body: some View {
@@ -82,19 +80,15 @@ struct DecksView: View {
                 }
             }
             .sheet(isPresented: $showingLoginSheet) {
-                SyncLoginSheet(backend: backend) { newHkey in
-                    Keychain.saveHkey(newHkey)
-                    hkey = newHkey
-                    Task { await sync() }
-                }
+                SyncLoginSheet(syncStore: syncStore)
             }
             .alert(
                 "Sync Failed", isPresented: Binding(
-                    get: { syncError != nil }, set: { if !$0 { syncError = nil } })
+                    get: { syncStore.lastError != nil }, set: { if !$0 { syncStore.lastError = nil } })
             ) {
-                Button("OK") { syncError = nil }
+                Button("OK") { syncStore.lastError = nil }
             } message: {
-                Text(String(describing: syncError))
+                Text(String(describing: syncStore.lastError))
             }
         }
         .task {
@@ -102,25 +96,29 @@ struct DecksView: View {
                 try? await backend.seedTestDataIfNeeded()
             #endif
             await reload()
-            if hkey != nil {
-                await sync()
+            if syncStore.isSignedIn {
+                await syncStore.sync()
+                await reload()
             }
         }
     }
 
     @ViewBuilder
     private var syncIndicator: some View {
-        if hkey == nil {
+        if !syncStore.isSignedIn {
             Button {
                 showingLoginSheet = true
             } label: {
                 Image(systemName: "person.crop.circle.badge.exclamationmark")
             }
-        } else if isSyncing {
+        } else if syncStore.isSyncing {
             ProgressView()
         } else {
             Button {
-                Task { await sync() }
+                Task {
+                    await syncStore.sync()
+                    await reload()
+                }
             } label: {
                 Image(systemName: "checkmark.icloud")
             }
@@ -155,44 +153,9 @@ struct DecksView: View {
     }
 
     private func syncOrReload() async {
-        if hkey != nil {
-            await sync()
-        } else {
-            await reload()
+        if syncStore.isSignedIn {
+            await syncStore.sync()
         }
-    }
-
-    private func sync() async {
-        guard let hkey else { return }
-        isSyncing = true
-        defer { isSyncing = false }
-        do {
-            var auth = Anki_Sync_SyncAuth()
-            auth.hkey = hkey
-            let response = try await backend.syncCollection(auth: auth, syncMedia: true)
-            switch response.required {
-            case .fullDownload:
-                // Fresh local collection, existing AnkiWeb data: the only
-                // sane default for v1 (no destructive-choice UI yet).
-                _ = try await backend.fullUploadOrDownload(
-                    auth: auth, upload: false, serverUsn: response.serverMediaUsn)
-            case .fullUpload:
-                _ = try await backend.fullUploadOrDownload(
-                    auth: auth, upload: true, serverUsn: response.serverMediaUsn)
-            case .fullSync:
-                // Ambiguous (schema changed on both sides) — default to
-                // download. A real conflict picker is a v2 concern.
-                _ = try await backend.fullUploadOrDownload(
-                    auth: auth, upload: false, serverUsn: response.serverMediaUsn)
-            case .noChanges, .normalSync, .UNRECOGNIZED:
-                // sync_collection already performed the differential sync
-                // and kicked off media sync in the background; this just
-                // makes sure media sync started (harmless no-op if so).
-                _ = try await backend.syncMedia(auth)
-            }
-            await reload()
-        } catch {
-            syncError = error
-        }
+        await reload()
     }
 }
