@@ -239,20 +239,45 @@ apply to every screen:
 
 Screens:
 
-- [ ] **Decks**: `List` from `deck_tree` (flattened hierarchy with
+- [x] **Decks**: `List` from `deck_tree` (flattened hierarchy with
       indentation for v1), new/learn/due counters in system blue/orange/
       green, pull-to-refresh = sync, tap → review.
-- [ ] **Review**: full-screen WKWebView (question → tap or button →
+      Pull-to-refresh currently just reloads `deck_tree`; it'll trigger a
+      real sync once the Sync screen below lands.
+      No per-deck review selection: the v1 RPC list has no "select deck"
+      call, so tapping any row opens the same global review queue
+      (get_queued_cards has no deck_id param) — matches the frozen v1 RPC
+      list, not a shortcut.
+- [x] **Review**: full-screen WKWebView (question → tap or button →
       answer), WebView background matched to the theme
       (`isOpaque = false` + CSS), glass answer bar: one "Show answer"
       button, then 4 buttons Again/Hard/Good/Easy with the intervals from
       `describe_next_states` as subtitles. `answer_card`, then next card
-      via `get_queued_cards`. Remaining count in the toolbar.
-- [ ] **Media**: custom `WKURLSchemeHandler` (e.g. `anki-media://`) that
+      via `get_queued_cards`. Remaining count in the toolbar (as the
+      navigation title, e.g. "3 left").
+- [x] **Media**: custom `WKURLSchemeHandler` (e.g. `anki-media://`) that
       reads `collection.media/` and serves files with the right MIME type;
       rewrite the card HTML's relative `src` attributes to this scheme.
-- [ ] **Audio**: `extract_av_tags` on the rendered HTML, play `[sound:...]`
+      Didn't rewrite the HTML string itself — simpler to load the card
+      with `baseURL: URL(string: "anki-media:///")`, so WKWebView resolves
+      any relative `src="foo.jpg"` into `anki-media:///foo.jpg` on its own.
+- [x] **Audio**: `extract_av_tags` on the rendered HTML, play `[sound:...]`
       via `AVAudioPlayer`, replay button in the toolbar.
+      TTS tags are skipped (out of scope for v1, not in the frozen RPC/
+      feature list — only plain `soundOrVideo` tags play).
+      Added `.sensoryFeedback(.success, trigger:)` on card answer per the
+      Step 4 polish rules.
+      Verification caveat: the local test collection is empty (0 cards),
+      so Decks/Review's happy paths with real content, and Media/Audio
+      specifically, could only be verified by (a) confirming the app
+      builds clean and (b) confirming the correct empty-state UI renders
+      end-to-end (`ContentUnavailableView` "All Done" from a real
+      `get_queued_cards` call returning zero cards) — screenshotted on
+      iPhone 17 Pro Simulator. Rendering a card with real
+      images/audio/`[sound:...]` tags needs actual due cards, which only
+      exist once milestone 4 (AnkiWeb sync) has pulled real data — so
+      that part of the verification is folded into milestone 3 below,
+      same as the roadmap already specifies.
 - [ ] **Sync**: AnkiWeb login sheet (`sync_login`, hkey stored in the
       **Keychain**, never UserDefaults), auto-sync on launch when
       credentials exist, discreet indicator in the decks toolbar, errors

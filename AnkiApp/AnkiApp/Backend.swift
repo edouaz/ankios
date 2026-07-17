@@ -30,6 +30,10 @@ actor Backend {
     // this actor exists, so there's no concurrent access to race with.
     private nonisolated(unsafe) let handle: OpaquePointer
 
+    // Immutable after init, so safe to read synchronously (e.g. from the
+    // media WKURLSchemeHandler, which runs off the actor).
+    nonisolated let mediaFolderPath: String
+
     // async so this runs on the actor's executor, letting init call other
     // isolated methods (openCollection) synchronously below.
     init() async throws {
@@ -59,6 +63,7 @@ actor Backend {
             throw OpenError()
         }
         self.handle = handle
+        self.mediaFolderPath = mediaFolderPath
 
         _ = try openCollection(
             collectionPath: collectionPath,
