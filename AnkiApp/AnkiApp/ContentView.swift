@@ -12,11 +12,13 @@ struct ContentView: View {
     var body: some View {
         Group {
             if let backend, let syncStore {
-                TabView {
+                TabView(selection: .constant(1)) {  // TEMP: verifying Account tab screenshot
                     DecksView(backend: backend, syncStore: syncStore)
                         .tabItem { Label("Decks", systemImage: "rectangle.stack") }
+                        .tag(0)
                     AccountView(syncStore: syncStore)
                         .tabItem { Label("Account", systemImage: "person.crop.circle") }
+                        .tag(1)
                 }
             } else if let openError {
                 ContentUnavailableView(
