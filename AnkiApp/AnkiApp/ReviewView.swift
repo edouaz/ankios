@@ -25,6 +25,8 @@ struct ReviewView: View {
     @State private var startedAt = Date()
     @State private var mediaSchemeHandler: MediaSchemeHandler?
     @State private var answeredCount = 0
+    @State private var undoLabel = ""
+    @State private var congrats: Anki_Scheduler_CongratsInfoResponse?
     @StateObject private var soundPlayer = SoundPlayer()
 
     var body: some View {
@@ -37,11 +39,31 @@ struct ReviewView: View {
                     answerBar(card: card)
                 }
                 .toolbar {
-                    ToolbarItem(placement: .topBarTrailing) {
+                    ToolbarItemGroup(placement: .topBarTrailing) {
+                        Button {
+                            Task { await undoTapped() }
+                        } label: {
+                            Image(systemName: "arrow.uturn.backward")
+                        }
+                        .disabled(undoLabel.isEmpty)
                         Button {
                             replayAudio(rendered: rendered)
                         } label: {
                             Image(systemName: "speaker.wave.2.fill")
+                        }
+                        Menu {
+                            Button {
+                                Task { await buryOrSuspend(.buryUser, card: card) }
+                            } label: {
+                                Label("Bury Card", systemImage: "moon.zzz")
+                            }
+                            Button(role: .destructive) {
+                                Task { await buryOrSuspend(.suspend, card: card) }
+                            } label: {
+                                Label("Suspend Card", systemImage: "pause.circle")
+                            }
+                        } label: {
+                            Image(systemName: "ellipsis.circle")
                         }
                     }
                 }
@@ -52,9 +74,17 @@ struct ReviewView: View {
                     "Couldn't Load Card", systemImage: "exclamationmark.triangle",
                     description: Text(String(describing: loadError!)))
             } else if queue != nil {
-                ContentUnavailableView(
-                    "All Done", systemImage: "checkmark.circle",
-                    description: Text("No cards due right now."))
+                ContentUnavailableView {
+                    Label("All Done", systemImage: "checkmark.circle")
+                } description: {
+                    Text(congratsDescription)
+                } actions: {
+                    if !undoLabel.isEmpty {
+                        Button("Undo \(undoLabel)") {
+                            Task { await undoTapped() }
+                        }
+                    }
+                }
             } else {
                 ProgressView()
             }
@@ -117,19 +147,53 @@ struct ReviewView: View {
         .glassEffect(.regular.tint(color.opacity(0.3)).interactive(), in: .rect(cornerRadius: 16))
     }
 
+    private var congratsDescription: String {
+        guard let congrats else { return "No cards due right now." }
+        var parts: [String] = []
+        if congrats.learnRemaining > 0 {
+            let mins = max(1, Int(congrats.secsUntilNextLearn) / 60)
+            parts.append("Next learning card ready in \(mins) min.")
+        } else {
+            parts.append("No cards due right now.")
+        }
+        if congrats.haveUserBuried || congrats.haveSchedBuried {
+            parts.append("Some cards were buried — they'll be back tomorrow.")
+        }
+        return parts.joined(separator: " ")
+    }
+
     private func loadNextCard() async {
         showingAnswer = false
         nextStates = []
+        undoLabel = (try? await backend.getUndoStatus().undo) ?? ""
         do {
             let q = try await backend.getQueuedCards(fetchLimit: 1, intradayLearningOnly: false)
             queue = q
             guard let card = q.cards.first else {
                 rendered = nil
+                congrats = try? await backend.congratsInfo()
                 return
             }
             rendered = try await backend.renderExistingCard(
                 cardId: card.card.id, browser: false, partialRender: false)
             startedAt = Date()
+        } catch {
+            loadError = error
+        }
+    }
+
+    private func undoTapped() async {
+        guard (try? await backend.undo()) != nil else { return }
+        await loadNextCard()
+    }
+
+    private func buryOrSuspend(
+        _ mode: Anki_Scheduler_BuryOrSuspendCardsRequest.Mode,
+        card: Anki_Scheduler_QueuedCards.QueuedCard
+    ) async {
+        do {
+            _ = try await backend.buryOrSuspendCards(cardIds: [card.card.id], mode: mode)
+            await loadNextCard()
         } catch {
             loadError = error
         }
