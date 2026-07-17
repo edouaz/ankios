@@ -91,6 +91,8 @@ struct ReviewView: View {
                 ProgressView()
             }
         }
+        // Full-screen study: hide the tab bar while reviewing (restored on pop).
+        .toolbar(.hidden, for: .tabBar)
         // nil suppresses the haptic entirely when the user turns it off.
         .sensoryFeedback(trigger: answeredCount) { _, _ in hapticsEnabled ? .success : nil }
         .task {
