@@ -108,16 +108,18 @@ struct DecksView: View {
             } message: {
                 Text(importResult ?? "")
             }
-            .confirmationDialog(
-                "Restart this deck? Every card goes back to new and all study progress is lost.",
+            .alert(
+                "Restart Deck?",
                 isPresented: Binding(
                     get: { resettingDeck != nil }, set: { if !$0 { resettingDeck = nil } }),
                 presenting: resettingDeck
             ) { deck in
-                Button("Restart “\(deck.name)”", role: .destructive) {
+                Button("Restart", role: .destructive) {
                     Task { await resetDeck(deck) }
                 }
                 Button("Cancel", role: .cancel) {}
+            } message: { deck in
+                Text("Every card in “\(deck.name)” goes back to new and all study progress is lost.")
             }
             .alert(
                 "Error",
