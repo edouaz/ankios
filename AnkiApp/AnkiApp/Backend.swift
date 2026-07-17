@@ -20,6 +20,7 @@ actor Backend {
         case decks = 7
         case scheduler = 13
         case cardRendering = 27
+        case search = 29
         case importExport = 39
         case stats = 43
         #if DEBUG
@@ -151,6 +152,27 @@ actor Backend {
         req.did = deckID
         return try Anki_Collection_OpChanges(
             serializedBytes: run(.decks, 22, req.serializedData()))
+    }
+
+    /// Card ids matching an Anki search string (e.g. `deck:"French"`).
+    func searchCards(_ search: String) throws -> [Int64] {
+        var req = Anki_Search_SearchRequest()
+        req.search = search
+        return try Anki_Search_SearchResponse(
+            serializedBytes: run(.search, 1, req.serializedData())).ids
+    }
+
+    /// Resets cards to the new queue ("Forget") — used to restart a deck from
+    /// scratch. `restorePosition`/`resetCounts` match the desktop Forget
+    /// dialog's "reset to brand new" behaviour.
+    func scheduleCardsAsNew(cardIDs: [Int64]) throws -> Anki_Collection_OpChanges {
+        var req = Anki_Scheduler_ScheduleCardsAsNewRequest()
+        req.cardIds = cardIDs
+        req.log = true
+        req.restorePosition = true
+        req.resetCounts = true
+        return try Anki_Collection_OpChanges(
+            serializedBytes: run(.scheduler, 17, req.serializedData()))
     }
 
     func getQueuedCards(fetchLimit: UInt32 = 1, intradayLearningOnly: Bool = false) throws

@@ -7,6 +7,8 @@ import UniformTypeIdentifiers
 private struct DeckRow: Identifiable {
     let id: Int64
     let name: String
+    // Full "Parent::Child" path — used to search the deck's cards for reset.
+    let fullName: String
     let level: Int
     let newCount: UInt32
     let learnCount: UInt32
@@ -15,17 +17,22 @@ private struct DeckRow: Identifiable {
 
 /// Flattens the deck tree (skipping the synthetic root) into an indented
 /// list. Full nested collapsing is a v2 concern; v1 just shows everything.
-private func flatten(_ node: Anki_Decks_DeckTreeNode, level: Int = 0) -> [DeckRow] {
+private func flatten(_ node: Anki_Decks_DeckTreeNode, level: Int = 0, prefix: String = "")
+    -> [DeckRow]
+{
     var rows: [DeckRow] = []
+    var fullName = ""
     if node.level > 0 {
+        fullName = prefix.isEmpty ? node.name : prefix + "::" + node.name
         rows.append(
             DeckRow(
-                id: node.deckID, name: node.name, level: level,
+                id: node.deckID, name: node.name, fullName: fullName, level: level,
                 newCount: node.newCount, learnCount: node.learnCount,
                 reviewCount: node.reviewCount))
     }
+    let childPrefix = node.level > 0 ? fullName : prefix
     for child in node.children {
-        rows.append(contentsOf: flatten(child, level: level + 1))
+        rows.append(contentsOf: flatten(child, level: level + 1, prefix: childPrefix))
     }
     return rows
 }
@@ -41,6 +48,8 @@ struct DecksView: View {
     @State private var showingImporter = false
     @State private var isImporting = false
     @State private var importResult: String?
+    @State private var resettingDeck: DeckRow?
+    @State private var actionError: String?
 
     var body: some View {
         NavigationStack {
@@ -52,18 +61,7 @@ struct DecksView: View {
                             description: Text("Sync to pull your decks from AnkiWeb."))
                     } else {
                         List(rows) { row in
-                            Button {
-                                Task {
-                                    // get_queued_cards reviews whatever
-                                    // deck is "current" — must select it
-                                    // first, or every tap reviews deck 1.
-                                    _ = try? await backend.setCurrentDeck(deckID: row.id)
-                                    reviewingDeckID = row.id
-                                }
-                            } label: {
-                                deckRowLabel(row)
-                            }
-                            .buttonStyle(.plain)
+                            deckRow(row)
                         }
                         .refreshable { await syncOrReload() }
                     }
@@ -110,6 +108,26 @@ struct DecksView: View {
             } message: {
                 Text(importResult ?? "")
             }
+            .confirmationDialog(
+                "Restart this deck? Every card goes back to new and all study progress is lost.",
+                isPresented: Binding(
+                    get: { resettingDeck != nil }, set: { if !$0 { resettingDeck = nil } }),
+                presenting: resettingDeck
+            ) { deck in
+                Button("Restart “\(deck.name)”", role: .destructive) {
+                    Task { await resetDeck(deck) }
+                }
+                Button("Cancel", role: .cancel) {}
+            }
+            .alert(
+                "Error",
+                isPresented: Binding(
+                    get: { actionError != nil }, set: { if !$0 { actionError = nil } })
+            ) {
+                Button("OK") { actionError = nil }
+            } message: {
+                Text(actionError ?? "")
+            }
             .sheet(isPresented: $showingLoginSheet) {
                 SyncLoginSheet(syncStore: syncStore)
             }
@@ -131,6 +149,29 @@ struct DecksView: View {
                 await syncStore.sync()
                 await reload()
             }
+        }
+    }
+
+    @ViewBuilder
+    private func deckRow(_ row: DeckRow) -> some View {
+        Button {
+            Task {
+                // get_queued_cards reviews whatever deck is "current" — must
+                // select it first, or every tap reviews deck 1.
+                _ = try? await backend.setCurrentDeck(deckID: row.id)
+                reviewingDeckID = row.id
+            }
+        } label: {
+            deckRowLabel(row)
+        }
+        .buttonStyle(.plain)
+        .swipeActions(edge: .trailing) {
+            Button(role: .destructive) {
+                resettingDeck = row
+            } label: {
+                Label("Restart", systemImage: "arrow.counterclockwise")
+            }
+            .tint(.orange)
         }
     }
 
@@ -171,6 +212,20 @@ struct DecksView: View {
             if row.reviewCount > 0 {
                 Text("\(row.reviewCount)").foregroundStyle(.green)
             }
+        }
+    }
+
+    /// Forgets every card in the deck (and its subdecks) so the whole deck
+    /// can be studied again from scratch.
+    private func resetDeck(_ row: DeckRow) async {
+        do {
+            let ids = try await backend.searchCards("deck:\"\(row.fullName)\"")
+            if !ids.isEmpty {
+                _ = try await backend.scheduleCardsAsNew(cardIDs: ids)
+            }
+            await reload()
+        } catch {
+            actionError = String(describing: error)
         }
     }
 
