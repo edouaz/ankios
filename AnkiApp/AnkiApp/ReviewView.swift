@@ -32,61 +32,25 @@ struct ReviewView: View {
 
     var body: some View {
         Group {
-            if let queue, let card = queue.cards.first, let rendered, let mediaSchemeHandler {
-                VStack(spacing: 0) {
-                    CardWebView(
-                        html: showingAnswer ? concat(rendered.answerNodes) : concat(rendered.questionNodes),
-                        css: rendered.css, mediaSchemeHandler: mediaSchemeHandler)
-                    answerBar(card: card)
+            if let queue, let card = queue.cards.first {
+                if let rendered, let mediaSchemeHandler {
+                    cardView(card: card, rendered: rendered, mediaSchemeHandler: mediaSchemeHandler)
+                        .navigationTitle(
+                            "\(queue.newCount + queue.learningCount + queue.reviewCount) left"
+                        )
+                        .navigationBarTitleDisplayMode(.inline)
+                } else {
+                    // Card exists but its HTML is still rendering. Show a
+                    // spinner here — falling through to "All Done" is what
+                    // flashed the confetti every time a deck was opened.
+                    ProgressView()
                 }
-                .toolbar {
-                    ToolbarItemGroup(placement: .topBarTrailing) {
-                        Button {
-                            Task { await undoTapped() }
-                        } label: {
-                            Image(systemName: "arrow.uturn.backward")
-                        }
-                        .disabled(undoLabel.isEmpty)
-                        Button {
-                            replayAudio(rendered: rendered)
-                        } label: {
-                            Image(systemName: "speaker.wave.2.fill")
-                        }
-                        Menu {
-                            Button {
-                                Task { await buryOrSuspend(.buryUser, card: card) }
-                            } label: {
-                                Label("Bury Card", systemImage: "moon.zzz")
-                            }
-                            Button(role: .destructive) {
-                                Task { await buryOrSuspend(.suspend, card: card) }
-                            } label: {
-                                Label("Suspend Card", systemImage: "pause.circle")
-                            }
-                        } label: {
-                            Image(systemName: "ellipsis.circle")
-                        }
-                    }
-                }
-                .navigationTitle("\(queue.newCount + queue.learningCount + queue.reviewCount) left")
-                .navigationBarTitleDisplayMode(.inline)
             } else if loadError != nil {
                 ContentUnavailableView(
                     "Couldn't Load Card", systemImage: "exclamationmark.triangle",
                     description: Text(String(describing: loadError!)))
             } else if queue != nil {
-                ContentUnavailableView {
-                    Label("All Done", systemImage: "checkmark.circle")
-                } description: {
-                    Text(congratsDescription)
-                } actions: {
-                    if !undoLabel.isEmpty {
-                        Button("Undo \(undoLabel)") {
-                            Task { await undoTapped() }
-                        }
-                    }
-                }
-                .overlay { CelebrationView(hapticsEnabled: hapticsEnabled) }
+                allDoneView
             } else {
                 ProgressView()
             }
@@ -100,6 +64,64 @@ struct ReviewView: View {
             mediaSchemeHandler = MediaSchemeHandler(mediaFolderPath: backend.mediaFolderPath)
             await loadNextCard()
         }
+    }
+
+    @ViewBuilder
+    private func cardView(
+        card: Anki_Scheduler_QueuedCards.QueuedCard,
+        rendered: Anki_CardRendering_RenderCardResponse,
+        mediaSchemeHandler: MediaSchemeHandler
+    ) -> some View {
+        VStack(spacing: 0) {
+            CardWebView(
+                html: showingAnswer ? concat(rendered.answerNodes) : concat(rendered.questionNodes),
+                css: rendered.css, mediaSchemeHandler: mediaSchemeHandler)
+            answerBar(card: card)
+        }
+        .toolbar {
+            ToolbarItemGroup(placement: .topBarTrailing) {
+                Button {
+                    Task { await undoTapped() }
+                } label: {
+                    Image(systemName: "arrow.uturn.backward")
+                }
+                .disabled(undoLabel.isEmpty)
+                Button {
+                    replayAudio(rendered: rendered)
+                } label: {
+                    Image(systemName: "speaker.wave.2.fill")
+                }
+                Menu {
+                    Button {
+                        Task { await buryOrSuspend(.buryUser, card: card) }
+                    } label: {
+                        Label("Bury Card", systemImage: "moon.zzz")
+                    }
+                    Button(role: .destructive) {
+                        Task { await buryOrSuspend(.suspend, card: card) }
+                    } label: {
+                        Label("Suspend Card", systemImage: "pause.circle")
+                    }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                }
+            }
+        }
+    }
+
+    private var allDoneView: some View {
+        ContentUnavailableView {
+            Label("All Done", systemImage: "checkmark.circle")
+        } description: {
+            Text(congratsDescription)
+        } actions: {
+            if !undoLabel.isEmpty {
+                Button("Undo \(undoLabel)") {
+                    Task { await undoTapped() }
+                }
+            }
+        }
+        .overlay { CelebrationView(hapticsEnabled: hapticsEnabled) }
     }
 
     @ViewBuilder
