@@ -35,6 +35,10 @@ struct DecksView: View {
     @State private var rows: [DeckRow]?
     @State private var loadError: Error?
     @State private var reviewingDeckID: Int64?
+    @State private var hkey: String? = Keychain.loadHkey()
+    @State private var isSyncing = false
+    @State private var syncError: Error?
+    @State private var showingLoginSheet = false
 
     var body: some View {
         NavigationStack {
@@ -53,7 +57,7 @@ struct DecksView: View {
                             }
                             .buttonStyle(.plain)
                         }
-                        .refreshable { await reload() }
+                        .refreshable { await syncOrReload() }
                     }
                 } else if loadError != nil {
                     ContentUnavailableView(
@@ -66,8 +70,52 @@ struct DecksView: View {
             .navigationDestination(item: $reviewingDeckID) { _ in
                 ReviewView(backend: backend)
             }
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    syncIndicator
+                }
+            }
+            .sheet(isPresented: $showingLoginSheet) {
+                SyncLoginSheet(backend: backend) { newHkey in
+                    Keychain.saveHkey(newHkey)
+                    hkey = newHkey
+                    Task { await sync() }
+                }
+            }
+            .alert(
+                "Sync Failed", isPresented: Binding(
+                    get: { syncError != nil }, set: { if !$0 { syncError = nil } })
+            ) {
+                Button("OK") { syncError = nil }
+            } message: {
+                Text(String(describing: syncError))
+            }
         }
-        .task { await reload() }
+        .task {
+            await reload()
+            if hkey != nil {
+                await sync()
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var syncIndicator: some View {
+        if hkey == nil {
+            Button {
+                showingLoginSheet = true
+            } label: {
+                Image(systemName: "person.crop.circle.badge.exclamationmark")
+            }
+        } else if isSyncing {
+            ProgressView()
+        } else {
+            Button {
+                Task { await sync() }
+            } label: {
+                Image(systemName: "checkmark.icloud")
+            }
+        }
     }
 
     @ViewBuilder
@@ -94,6 +142,29 @@ struct DecksView: View {
             rows = flatten(tree)
         } catch {
             loadError = error
+        }
+    }
+
+    private func syncOrReload() async {
+        if hkey != nil {
+            await sync()
+        } else {
+            await reload()
+        }
+    }
+
+    private func sync() async {
+        guard let hkey else { return }
+        isSyncing = true
+        defer { isSyncing = false }
+        do {
+            var auth = Anki_Sync_SyncAuth()
+            auth.hkey = hkey
+            _ = try await backend.syncCollection(auth: auth, syncMedia: true)
+            _ = try await backend.syncMedia(auth)
+            await reload()
+        } catch {
+            syncError = error
         }
     }
 }

@@ -278,10 +278,27 @@ Screens:
       exist once milestone 4 (AnkiWeb sync) has pulled real data — so
       that part of the verification is folded into milestone 3 below,
       same as the roadmap already specifies.
-- [ ] **Sync**: AnkiWeb login sheet (`sync_login`, hkey stored in the
+- [x] **Sync**: AnkiWeb login sheet (`sync_login`, hkey stored in the
       **Keychain**, never UserDefaults), auto-sync on launch when
       credentials exist, discreet indicator in the decks toolbar, errors
       as `.alert`.
+      Toolbar icon: person-with-exclamation (signed out, taps → login
+      sheet) / a spinner while syncing / a cloud-checkmark (idle, taps →
+      manual sync). Pull-to-refresh now syncs when signed in, else just
+      reloads `deck_tree`. `sync_collection` (with `sync_media: true`)
+      then a separate `sync_media` call, matching the two RPCs the v1
+      list gives us — `sync_status` isn't called yet, nothing in this
+      screen's spec needed it.
+      Verified on a **fully erased** iPhone 17 Pro Simulator (`xcrun
+      simctl erase`, not just uninstall/reinstall): fresh state correctly
+      shows the signed-out icon. Had to erase the whole device to prove
+      this, not just uninstall the app — Keychain items intentionally
+      survive app deletion on iOS/Simulator (that's the point of using
+      Keychain over UserDefaults), so a leftover `hkey` from an earlier
+      manual test kept showing the signed-in icon through several
+      uninstall/reinstall cycles before the device-level erase settled it.
+      Real AnkiWeb login itself is unverified (needs real credentials —
+      see milestone 4).
 - [ ] Verify (milestone 3): review a real card (with image and audio) on a
       physical iPhone.
 - [ ] Verify (milestone 4): round-trip sync with AnkiWeb **on a test
