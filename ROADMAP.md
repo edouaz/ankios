@@ -242,12 +242,20 @@ Screens:
 - [x] **Decks**: `List` from `deck_tree` (flattened hierarchy with
       indentation for v1), new/learn/due counters in system blue/orange/
       green, pull-to-refresh = sync, tap → review.
-      Pull-to-refresh currently just reloads `deck_tree`; it'll trigger a
-      real sync once the Sync screen below lands.
-      No per-deck review selection: the v1 RPC list has no "select deck"
-      call, so tapping any row opens the same global review queue
-      (get_queued_cards has no deck_id param) — matches the frozen v1 RPC
-      list, not a shortcut.
+      Pull-to-refresh syncs when signed in (see Sync below), else just
+      reloads `deck_tree`.
+      **Correction to an earlier note here**: this used to claim v1 has no
+      per-deck review selection since `get_queued_cards` has no `deck_id`
+      param. That's true but misleading — `get_queued_cards` scopes to a
+      **"current deck"** server-side concept instead
+      (`rslib/src/decks/current.rs`, defaulting to deck 1 "Default"), so
+      without selecting a deck first, every review silently reviewed
+      whatever deck 1 happened to be. Found via real user testing (thanks!)
+      after sync appeared to not bring any cards down. Fixed by adding
+      `SetCurrentDeck` (service 7, method 22) to `Backend.swift` and
+      calling it on deck tap, before navigating to Review. Not in the
+      original v1 RPC list — needed for the list's own "tap → review" to
+      actually work, so added it.
 - [x] **Review**: full-screen WKWebView (question → tap or button →
       answer), WebView background matched to the theme
       (`isOpaque = false` + CSS), glass answer bar: one "Show answer"
@@ -255,6 +263,17 @@ Screens:
       `describe_next_states` as subtitles. `answer_card`, then next card
       via `get_queued_cards`. Remaining count in the toolbar (as the
       navigation title, e.g. "3 left").
+      **Bug found and fixed**: card text was rendering invisible
+      (white-on-white) — `color-scheme: light dark` in the document, with
+      no explicit paired text/background CSS and a transparent
+      (`isOpaque = false`) native backing, let WebKit's dark-mode default
+      stylesheet invert to white text independently of the actually-light
+      native background. Fixed in `CardWebView.swift` by setting
+      `webView.overrideUserInterfaceStyle` to match SwiftUI's
+      `colorScheme`, and giving the document explicit
+      `body { background: Canvas; color: CanvasText; }` (CSS Level 4
+      system colors — theme-aware and guaranteed to pair correctly,
+      instead of relying on UA default inversion).
 - [x] **Media**: custom `WKURLSchemeHandler` (e.g. `anki-media://`) that
       reads `collection.media/` and serves files with the right MIME type;
       rewrite the card HTML's relative `src` attributes to this scheme.
@@ -267,28 +286,43 @@ Screens:
       feature list — only plain `soundOrVideo` tags play).
       Added `.sensoryFeedback(.success, trigger:)` on card answer per the
       Step 4 polish rules.
-      Verification caveat: the local test collection is empty (0 cards),
-      so Decks/Review's happy paths with real content, and Media/Audio
-      specifically, could only be verified by (a) confirming the app
-      builds clean and (b) confirming the correct empty-state UI renders
-      end-to-end (`ContentUnavailableView` "All Done" from a real
-      `get_queued_cards` call returning zero cards) — screenshotted on
-      iPhone 17 Pro Simulator. Rendering a card with real
-      images/audio/`[sound:...]` tags needs actual due cards, which only
-      exist once milestone 4 (AnkiWeb sync) has pulled real data — so
-      that part of the verification is folded into milestone 3 below,
-      same as the roadmap already specifies.
+      **Verified with real seeded content** (see the debug test-data note
+      below), not just the empty-collection happy path: a real card
+      ("Capital of France?" / "Paris") rendered correctly end-to-end —
+      correct queue count, visible text, and the glass answer bar with
+      real `describe_next_states` intervals (<1m/<6m/<10m/3d) —
+      screenshotted on iPhone 17 Pro Simulator. Media (image) and audio
+      ([sound:...] tag) playback specifically are still unverified beyond
+      "the files get written to collection.media/ and the note references
+      them correctly" — actually seeing/hearing them play back needs the
+      physical-device milestone below (Simulator audio output isn't
+      something this environment can verify).
 - [x] **Sync**: AnkiWeb login sheet (`sync_login`, hkey stored in the
       **Keychain**, never UserDefaults), auto-sync on launch when
       credentials exist, discreet indicator in the decks toolbar, errors
       as `.alert`.
       Toolbar icon: person-with-exclamation (signed out, taps → login
       sheet) / a spinner while syncing / a cloud-checkmark (idle, taps →
-      manual sync). Pull-to-refresh now syncs when signed in, else just
-      reloads `deck_tree`. `sync_collection` (with `sync_media: true`)
-      then a separate `sync_media` call, matching the two RPCs the v1
-      list gives us — `sync_status` isn't called yet, nothing in this
-      screen's spec needed it.
+      manual sync).
+      **Bug found and fixed** (again via real user testing — signed in
+      with a real AnkiWeb account, decks didn't sync down): `sync_collection`
+      only *negotiates* on a fresh local collection. Read
+      `rslib/src/backend/sync.rs`/`rslib/src/sync/collection/normal.rs`:
+      it performs the transfer itself and returns `required: NoChanges`
+      only when a normal differential sync is possible; for a brand new
+      empty local collection against an account with existing data, it
+      returns `required: FullDownload` **without transferring anything**.
+      The actual transfer needs a separate RPC. Added
+      `FullUploadOrDownload` (service 1, method 6) to `Backend.swift` —
+      not in the original v1 RPC list either, same story as
+      `SetCurrentDeck` above: essential for the screen's own spec
+      ("auto-sync... when credentials exist") to actually work, so added
+      it rather than working around it. `DecksView.sync()` now branches on
+      `SyncCollectionResponse.required`: `fullDownload`/`fullUpload` call
+      `full_upload_or_download` with the matching `upload` flag;
+      `fullSync` (ambiguous — schema changed both sides) defaults to
+      download, since v1 has no conflict-resolution UI; everything else
+      falls through to the plain `sync_media` call as before.
       Verified on a **fully erased** iPhone 17 Pro Simulator (`xcrun
       simctl erase`, not just uninstall/reinstall): fresh state correctly
       shows the signed-out icon. Had to erase the whole device to prove
@@ -297,6 +331,19 @@ Screens:
       Keychain over UserDefaults), so a leftover `hkey` from an earlier
       manual test kept showing the signed-in icon through several
       uninstall/reinstall cycles before the device-level erase settled it.
+      Real AnkiWeb login itself is still unverified by me (needs real
+      credentials — see milestone 4); the fix above is verified via code
+      reading + the `required`-branching logic, not a live account.
+
+**Debug-only test data** (`Backend.swift`, `#if DEBUG` gated, not part of
+the v1 RPC list): `seedTestDataIfNeeded()` adds "Test Deck" with two notes
+(plain text, and one with an image + `[sound:...]` tag) the first time it's
+called on a collection, using `NewDeck`/`AddDeck`/`GetNotetypeIdByName`/
+`NewNote`/`AddNote` (services 7/23/25) plus writing a tiny SF-Symbol PNG
+and a synthesized sine-tone WAV straight into `collection.media/`. Called
+from `DecksView`'s `.task` in Debug builds only — never compiled into a
+release build. This is what surfaced both bugs above: without it there was
+no way to locally exercise Review with real content before milestone 4.
       Real AnkiWeb login itself is unverified (needs real credentials —
       see milestone 4).
 - [ ] Verify (milestone 3): review a real card (with image and audio) on a

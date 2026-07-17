@@ -51,7 +51,13 @@ struct DecksView: View {
                     } else {
                         List(rows) { row in
                             Button {
-                                reviewingDeckID = row.id
+                                Task {
+                                    // get_queued_cards reviews whatever
+                                    // deck is "current" — must select it
+                                    // first, or every tap reviews deck 1.
+                                    _ = try? await backend.setCurrentDeck(deckID: row.id)
+                                    reviewingDeckID = row.id
+                                }
                             } label: {
                                 deckRowLabel(row)
                             }
@@ -92,6 +98,9 @@ struct DecksView: View {
             }
         }
         .task {
+            #if DEBUG
+                try? await backend.seedTestDataIfNeeded()
+            #endif
             await reload()
             if hkey != nil {
                 await sync()
@@ -160,8 +169,27 @@ struct DecksView: View {
         do {
             var auth = Anki_Sync_SyncAuth()
             auth.hkey = hkey
-            _ = try await backend.syncCollection(auth: auth, syncMedia: true)
-            _ = try await backend.syncMedia(auth)
+            let response = try await backend.syncCollection(auth: auth, syncMedia: true)
+            switch response.required {
+            case .fullDownload:
+                // Fresh local collection, existing AnkiWeb data: the only
+                // sane default for v1 (no destructive-choice UI yet).
+                _ = try await backend.fullUploadOrDownload(
+                    auth: auth, upload: false, serverUsn: response.serverMediaUsn)
+            case .fullUpload:
+                _ = try await backend.fullUploadOrDownload(
+                    auth: auth, upload: true, serverUsn: response.serverMediaUsn)
+            case .fullSync:
+                // Ambiguous (schema changed on both sides) — default to
+                // download. A real conflict picker is a v2 concern.
+                _ = try await backend.fullUploadOrDownload(
+                    auth: auth, upload: false, serverUsn: response.serverMediaUsn)
+            case .noChanges, .normalSync, .UNRECOGNIZED:
+                // sync_collection already performed the differential sync
+                // and kicked off media sync in the background; this just
+                // makes sure media sync started (harmless no-op if so).
+                _ = try await backend.syncMedia(auth)
+            }
             await reload()
         } catch {
             syncError = error

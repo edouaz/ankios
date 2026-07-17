@@ -4,6 +4,9 @@
 import Anki
 import Foundation
 import SwiftProtobuf
+#if DEBUG
+    import UIKit
+#endif
 
 /// Thin Swift wrapper over the C FFI in `rsbridge-ios` (`Anki.xcframework`).
 /// FFI calls are blocking, so this is an actor: callers never touch the
@@ -17,6 +20,12 @@ actor Backend {
         case decks = 7
         case scheduler = 13
         case cardRendering = 27
+        #if DEBUG
+            // Only used by the test-data seeding below, not part of the
+            // locked v1 RPC list.
+            case notetypes = 23
+            case notes = 25
+        #endif
     }
 
     struct BackendCallError: Error {
@@ -120,6 +129,18 @@ actor Backend {
             serializedBytes: run(.decks, 4, req.serializedData()))
     }
 
+    /// `get_queued_cards` scopes its queue to a single "current deck"
+    /// (`decks::current.rs::get_current_deck`, defaulting to deck 1
+    /// "Default" until this is called) — not the whole collection. Needed
+    /// for "tap a deck → review its cards" to actually work; without it,
+    /// every deck review silently reviews whatever deck 1 happens to be.
+    func setCurrentDeck(deckID: Int64) throws -> Anki_Collection_OpChanges {
+        var req = Anki_Decks_DeckId()
+        req.did = deckID
+        return try Anki_Collection_OpChanges(
+            serializedBytes: run(.decks, 22, req.serializedData()))
+    }
+
     func getQueuedCards(fetchLimit: UInt32 = 1, intradayLearningOnly: Bool = false) throws
         -> Anki_Scheduler_QueuedCards
     {
@@ -189,4 +210,143 @@ actor Backend {
         try Anki_Generic_Empty(
             serializedBytes: run(.sync, 0, auth.serializedData()))
     }
+
+    /// `sync_collection` only negotiates: on a fresh local collection (or
+    /// after a schema change) it reports `fullDownload`/`fullUpload`/
+    /// `fullSync` as required without transferring anything, and this is
+    /// the RPC that actually performs that transfer. Not in the roadmap's
+    /// original v1 RPC list — added because the very first sync on a
+    /// fresh install always hits this path (see Step 4 Sync notes).
+    func fullUploadOrDownload(auth: Anki_Sync_SyncAuth, upload: Bool, serverUsn: Int32?) throws
+        -> Anki_Generic_Empty
+    {
+        var req = Anki_Sync_FullUploadOrDownloadRequest()
+        req.auth = auth
+        req.upload = upload
+        if let serverUsn {
+            req.serverUsn = serverUsn
+        }
+        return try Anki_Generic_Empty(
+            serializedBytes: run(.sync, 6, req.serializedData()))
+    }
+
+    #if DEBUG
+        // MARK: Debug-only test data seeding
+        //
+        // Not part of the roadmap's locked v1 RPC list — a testing
+        // convenience so Review/Media/Audio can be exercised on a fresh
+        // collection without waiting on a real AnkiWeb sync. Never
+        // compiled into a release build.
+
+        /// Adds "Test Deck" with a couple of notes (one plain, one with an
+        /// image and a [sound:...] tag) the first time it's called on a
+        /// given collection. Safe to call on every launch.
+        func seedTestDataIfNeeded() async throws {
+            let tree = try await deckTree()
+            if tree.children.contains(where: { $0.name == "Test Deck" }) {
+                return
+            }
+
+            let notetypeID = try await getNotetypeIdByName("Basic")
+            guard notetypeID != 0 else { return }
+
+            var deck = try await newDeck()
+            deck.name = "Test Deck"
+            let deckID = try await addDeck(deck)
+
+            try writeTestMedia()
+
+            var note1 = try await newNote(notetypeID: notetypeID)
+            note1.fields = ["Capital of France?", "Paris"]
+            _ = try await addNote(note1, deckID: deckID)
+
+            var note2 = try await newNote(notetypeID: notetypeID)
+            note2.fields = [
+                "<img src=\"anki-test-star.png\">What shape is this?",
+                "A star [sound:anki-test-tone.wav]",
+            ]
+            _ = try await addNote(note2, deckID: deckID)
+        }
+
+        private func getNotetypeIdByName(_ name: String) throws -> Int64 {
+            var req = Anki_Generic_String()
+            req.val = name
+            return try Anki_Notetypes_NotetypeId(
+                serializedBytes: run(.notetypes, 10, req.serializedData())
+            ).ntid
+        }
+
+        private func newDeck() throws -> Anki_Decks_Deck {
+            try Anki_Decks_Deck(serializedBytes: run(.decks, 0, Data()))
+        }
+
+        private func addDeck(_ deck: Anki_Decks_Deck) throws -> Int64 {
+            try Anki_Collection_OpChangesWithId(
+                serializedBytes: run(.decks, 1, deck.serializedData())
+            ).id
+        }
+
+        private func newNote(notetypeID: Int64) throws -> Anki_Notes_Note {
+            var req = Anki_Notetypes_NotetypeId()
+            req.ntid = notetypeID
+            return try Anki_Notes_Note(
+                serializedBytes: run(.notes, 0, req.serializedData()))
+        }
+
+        private func addNote(_ note: Anki_Notes_Note, deckID: Int64) throws
+            -> Anki_Notes_AddNoteResponse
+        {
+            var req = Anki_Notes_AddNoteRequest()
+            req.note = note
+            req.deckID = deckID
+            return try Anki_Notes_AddNoteResponse(
+                serializedBytes: run(.notes, 1, req.serializedData()))
+        }
+
+        private func writeTestMedia() throws {
+            let mediaDir = URL(fileURLWithPath: mediaFolderPath)
+            if let image = UIImage(systemName: "star.fill")?
+                .withTintColor(.systemYellow, renderingMode: .alwaysOriginal),
+                let png = image.pngData()
+            {
+                try png.write(to: mediaDir.appendingPathComponent("anki-test-star.png"))
+            }
+            try Self.toneWav(frequency: 440, duration: 0.4)
+                .write(to: mediaDir.appendingPathComponent("anki-test-tone.wav"))
+        }
+
+        private static func toneWav(frequency: Double, duration: Double) -> Data {
+            let sampleRate = 44100.0
+            let sampleCount = Int(sampleRate * duration)
+            let samples = (0..<sampleCount).map { i -> Int16 in
+                let t = Double(i) / sampleRate
+                return Int16(sin(2.0 * .pi * frequency * t) * 0.3 * Double(Int16.max))
+            }
+
+            var data = Data()
+            func append32(_ v: UInt32) {
+                withUnsafeBytes(of: v.littleEndian) { data.append(contentsOf: $0) }
+            }
+            func append16(_ v: UInt16) {
+                withUnsafeBytes(of: v.littleEndian) { data.append(contentsOf: $0) }
+            }
+            data.append(contentsOf: "RIFF".utf8)
+            append32(UInt32(36 + samples.count * 2))
+            data.append(contentsOf: "WAVE".utf8)
+            data.append(contentsOf: "fmt ".utf8)
+            append32(16)
+            append16(1)  // PCM
+            append16(1)  // mono
+            append32(UInt32(sampleRate))
+            append32(UInt32(sampleRate) * 2)  // byte rate
+            append16(2)  // block align
+            append16(16)  // bits per sample
+            data.append(contentsOf: "data".utf8)
+            append32(UInt32(samples.count * 2))
+            for s in samples {
+                append16(UInt16(bitPattern: s))
+            }
+            return data
+        }
+    #endif
 }
