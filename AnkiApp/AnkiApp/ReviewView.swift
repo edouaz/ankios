@@ -16,6 +16,10 @@ private func concat(_ nodes: [Anki_CardRendering_RenderedTemplateNode]) -> Strin
 
 struct ReviewView: View {
     let backend: Backend
+    /// Deck to review; selected as "current" before fetching the queue
+    /// (get_queued_cards is scoped to the current deck). Done here rather
+    /// than before navigating so the tap responds instantly.
+    var deckID: Int64? = nil
 
     @AppStorage("hapticsEnabled") private var hapticsEnabled = true
     @State private var queue: Anki_Scheduler_QueuedCards?
@@ -62,6 +66,9 @@ struct ReviewView: View {
         .task {
             try? AVAudioSession.sharedInstance().setCategory(.playback)
             mediaSchemeHandler = MediaSchemeHandler(mediaFolderPath: backend.mediaFolderPath)
+            if let deckID {
+                _ = try? await backend.setCurrentDeck(deckID: deckID)
+            }
             await loadNextCard()
         }
     }

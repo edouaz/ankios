@@ -523,6 +523,22 @@ declaring the UserDefaults "required-reason" API — deliberately not added now
 (inert for sideload, and adding it means editing the hand-authored pbxproj
 Resources phase); add it if/when you enroll.
 
+**Perf/UX pass (user-reported "very slow loadings, dead deck taps"):**
+root cause was `Backend` being a Swift `actor`: every FFI call queued
+behind the previous one, so a multi-second network sync serialized *all*
+other calls — deck taps and screen loads felt dead whenever a sync was in
+flight. The Rust `Backend` is internally synchronized (pylib calls it
+concurrently from many threads via `py.detach`), so the actor was pure
+overhead. Now a `final class` dispatching blocking FFI onto a *concurrent*
+DispatchQueue (`Backend.swift`); method signatures became `async throws`,
+call sites unchanged. Second fix: deck taps navigated only after awaiting
+`setCurrentDeck` — now navigation is instant and ReviewView selects the
+deck during its own loading state (`deckID` param). Third: Settings gained
+a Daily Limits section (`GetDeckConfigsForUpdate`/`UpdateDeckConfigs`,
+service 11 methods 6/7) editing new/day + reviews/day across every preset,
+passing collection-level flags (fsrs etc.) back unchanged. Verified in
+Simulator: Settings shows real config values (30/200) read via the new RPC.
+
 ## Step 5 — Later, only once milestone 4 is green
 
 Undo, mark/suspend/bury from the reviewer, card editor, browser/search,

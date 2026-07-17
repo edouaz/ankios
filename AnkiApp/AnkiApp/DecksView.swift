@@ -73,8 +73,8 @@ struct DecksView: View {
                 }
             }
             .navigationTitle("Decks")
-            .navigationDestination(item: $reviewingDeckID) { _ in
-                ReviewView(backend: backend)
+            .navigationDestination(item: $reviewingDeckID) { deckID in
+                ReviewView(backend: backend, deckID: deckID)
             }
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
@@ -157,12 +157,10 @@ struct DecksView: View {
     @ViewBuilder
     private func deckRow(_ row: DeckRow) -> some View {
         Button {
-            Task {
-                // get_queued_cards reviews whatever deck is "current" — must
-                // select it first, or every tap reviews deck 1.
-                _ = try? await backend.setCurrentDeck(deckID: row.id)
-                reviewingDeckID = row.id
-            }
+            // Navigate immediately — ReviewView selects the deck during its
+            // own loading state. Awaiting setCurrentDeck here made taps feel
+            // dead (nothing on screen until the RPC returned).
+            reviewingDeckID = row.id
         } label: {
             deckRowLabel(row)
         }

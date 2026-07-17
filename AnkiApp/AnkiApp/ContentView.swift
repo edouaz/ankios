@@ -19,7 +19,7 @@ struct ContentView: View {
                         .tabItem { Label("Stats", systemImage: "chart.bar.xaxis") }
                     AccountView(syncStore: syncStore)
                         .tabItem { Label("Account", systemImage: "person.crop.circle") }
-                    SettingsView()
+                    SettingsView(backend: backend)
                         .tabItem { Label("Settings", systemImage: "gearshape") }
                 }
             } else if let openError {
