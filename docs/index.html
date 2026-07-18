@@ -1,0 +1,421 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ankios: the real Anki engine, native on iPhone</title>
+<meta name="description" content="A native SwiftUI Anki client built on Anki's actual Rust backend. FSRS scheduling, AnkiWeb sync, real card rendering. Free and open source.">
+<meta property="og:title" content="Ankios">
+<meta property="og:description" content="The real Anki engine, native on iPhone. FSRS, AnkiWeb sync, open source.">
+<meta property="og:image" content="https://edouaz.github.io/ankios/assets/logo.png">
+<link rel="icon" type="image/png" href="assets/logo-180.png">
+<link rel="apple-touch-icon" href="assets/logo-180.png">
+<style>
+  :root {
+    --bg: #0b0c0f;
+    --surface: #14161b;
+    --surface-2: #1a1d24;
+    --line: rgba(255, 255, 255, 0.08);
+    --text: #f2f4f8;
+    --text-2: #9ba3b0;
+    --accent: #1a9bff;
+    --accent-deep: #0a6cf5;
+    --grad: linear-gradient(135deg, #1a9bff, #0a6cf5);
+    --radius: 16px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+  a { color: inherit; text-decoration: none; }
+  img { max-width: 100%; display: block; }
+  .wrap { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
+
+  /* ---------- nav ---------- */
+  nav {
+    position: sticky; top: 0; z-index: 50;
+    height: 64px;
+    background: rgba(11, 12, 15, 0.72);
+    backdrop-filter: blur(18px) saturate(160%);
+    -webkit-backdrop-filter: blur(18px) saturate(160%);
+    border-bottom: 1px solid var(--line);
+  }
+  .nav-inner {
+    max-width: 1200px; margin: 0 auto; padding: 0 24px;
+    height: 100%; display: flex; align-items: center; gap: 28px;
+  }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 17px; margin-right: auto; }
+  .brand img { width: 28px; height: 28px; border-radius: 7px; }
+  nav .links { display: flex; gap: 24px; font-size: 14.5px; color: var(--text-2); }
+  nav .links a:hover { color: var(--text); }
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    padding: 11px 22px; border-radius: 999px;
+    font-size: 15px; font-weight: 600; white-space: nowrap;
+    transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.18s;
+  }
+  .btn:active { transform: scale(0.97); }
+  .btn-primary {
+    background: var(--grad); color: #fff;
+    box-shadow: 0 6px 24px rgba(16, 122, 250, 0.35);
+  }
+  .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 10px 30px rgba(16, 122, 250, 0.45); }
+  .btn-ghost { border: 1px solid rgba(255, 255, 255, 0.16); color: var(--text); }
+  .btn-ghost:hover { border-color: rgba(255, 255, 255, 0.34); }
+  nav .btn { padding: 8px 16px; font-size: 14px; }
+
+  /* ---------- hero ---------- */
+  .hero { position: relative; padding: 72px 0 40px; }
+  .hero-glow {
+    position: absolute; top: -180px; right: -160px; width: 720px; height: 720px;
+    background: radial-gradient(circle, rgba(16, 122, 250, 0.16) 0%, transparent 60%);
+    pointer-events: none;
+  }
+  .hero-inner {
+    display: grid; grid-template-columns: 1.05fr 0.95fr;
+    gap: 48px; align-items: center;
+  }
+  h1 {
+    font-size: clamp(38px, 5vw, 60px);
+    line-height: 1.06; letter-spacing: -0.03em; font-weight: 800;
+  }
+  h1 .grad {
+    background: var(--grad);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .hero p {
+    margin: 22px 0 32px; font-size: 18px; color: var(--text-2); max-width: 44ch;
+  }
+  .hero-ctas { display: flex; gap: 14px; flex-wrap: wrap; }
+
+  .phones { position: relative; height: 620px; }
+  .phone {
+    position: absolute; width: 280px;
+    border-radius: 44px; border: 1px solid rgba(255, 255, 255, 0.14);
+    background: #000; padding: 9px;
+    box-shadow: 0 40px 80px rgba(0, 0, 0, 0.55), 0 18px 44px rgba(10, 80, 200, 0.18);
+  }
+  .phone img { border-radius: 36px; width: 100%; height: auto; }
+  .phone-front { right: 24px; top: 12px; transform: rotate(3deg); z-index: 2; }
+  .phone-back { right: 218px; top: 88px; transform: rotate(-6deg) scale(0.92); opacity: 0.82; z-index: 1; }
+
+  /* ---------- engine ---------- */
+  section { padding: 104px 0; }
+  .engine { text-align: center; }
+  h2 {
+    font-size: clamp(28px, 3.6vw, 42px);
+    letter-spacing: -0.02em; line-height: 1.15; font-weight: 750;
+  }
+  .engine > .wrap > p {
+    margin: 18px auto 0; max-width: 62ch; color: var(--text-2); font-size: 17px;
+  }
+  .stack {
+    margin: 52px auto 0; max-width: 460px;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .layer {
+    padding: 15px 20px; border-radius: 12px;
+    background: var(--surface); border: 1px solid var(--line);
+    font-size: 15px; display: flex; justify-content: space-between; align-items: baseline;
+    text-align: left;
+  }
+  .layer span { color: var(--text-2); font-size: 13px; }
+  .layer.core {
+    background: linear-gradient(135deg, rgba(26, 155, 255, 0.16), rgba(10, 108, 245, 0.16));
+    border-color: rgba(26, 155, 255, 0.35);
+  }
+
+  /* ---------- screens ---------- */
+  .screens h2 { text-align: center; }
+  .screens-row {
+    margin-top: 60px;
+    display: flex; justify-content: center; gap: 44px;
+  }
+  .screen-card { width: 270px; flex-shrink: 0; }
+  .screen-card .phone { position: static; width: 100%; }
+  .screen-card:nth-child(1) { transform: translateY(26px); }
+  .screen-card:nth-child(3) { transform: translateY(26px); }
+  .screen-card figcaption {
+    margin-top: 18px; text-align: center; font-size: 14.5px; color: var(--text-2);
+  }
+  .screen-card figcaption b { color: var(--text); font-weight: 650; display: block; margin-bottom: 2px; }
+
+  /* ---------- features ---------- */
+  .features-grid {
+    margin-top: 56px;
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px;
+  }
+  .feat {
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: var(--radius); padding: 26px 24px;
+  }
+  .feat h3 { font-size: 17px; font-weight: 650; margin-bottom: 6px; }
+  .feat p { font-size: 14.5px; color: var(--text-2); }
+  .feat-hero {
+    grid-column: span 2;
+    background:
+      radial-gradient(120% 160% at 90% -20%, rgba(26, 155, 255, 0.28) 0%, transparent 55%),
+      var(--surface);
+  }
+  .feat-tint { background: linear-gradient(160deg, var(--surface-2), var(--surface)); }
+
+  /* ---------- install ---------- */
+  .install-cols {
+    margin-top: 56px;
+    display: grid; grid-template-columns: 1fr 1fr; gap: 48px; align-items: start;
+  }
+  .install-cols > * { min-width: 0; }
+  .step { display: flex; gap: 18px; padding: 20px 0; }
+  .step + .step { border-top: 1px solid var(--line); }
+  .step-n {
+    flex-shrink: 0; width: 34px; height: 34px; border-radius: 50%;
+    background: var(--grad); color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 15px;
+  }
+  .step h3 { font-size: 16.5px; font-weight: 650; }
+  .step p { font-size: 14.5px; color: var(--text-2); margin-top: 3px; }
+  .step a { color: var(--accent); }
+  .step a:hover { text-decoration: underline; }
+  .install-note { margin-top: 22px; font-size: 13.5px; color: var(--text-2); }
+  .buildbox {
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: var(--radius); padding: 28px;
+  }
+  .buildbox h3 { font-size: 16.5px; font-weight: 650; margin-bottom: 10px; }
+  .buildbox p { font-size: 14.5px; color: var(--text-2); margin-bottom: 18px; }
+  pre {
+    background: #0d0f13; border: 1px solid var(--line); border-radius: 10px;
+    padding: 16px 18px; overflow-x: auto;
+    font-family: "SF Mono", ui-monospace, Menlo, monospace;
+    font-size: 12.5px; line-height: 1.7; color: #c9d4e3;
+  }
+  pre .c { color: #5b6472; }
+
+  /* ---------- footer ---------- */
+  footer { border-top: 1px solid var(--line); padding: 44px 0 60px; }
+  .foot {
+    display: flex; justify-content: space-between; align-items: center; gap: 24px; flex-wrap: wrap;
+  }
+  .foot-left { display: flex; align-items: center; gap: 10px; font-weight: 650; }
+  .foot-left img { width: 24px; height: 24px; border-radius: 6px; }
+  .foot p { font-size: 13px; color: var(--text-2); margin-top: 14px; max-width: 72ch; }
+  .foot-links { display: flex; gap: 22px; font-size: 14px; color: var(--text-2); }
+  .foot-links a:hover { color: var(--text); }
+
+  /* ---------- reveal motion ---------- */
+  .reveal { opacity: 0; transform: translateY(26px); transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1), transform 0.7s cubic-bezier(0.16, 1, 0.3, 1); }
+  .reveal.in { opacity: 1; transform: none; }
+  @media (prefers-reduced-motion: reduce) {
+    .reveal { opacity: 1; transform: none; transition: none; }
+    html { scroll-behavior: auto; }
+  }
+
+  /* ---------- mobile ---------- */
+  @media (max-width: 960px) {
+    .hero { padding-top: 48px; }
+    .hero-inner { grid-template-columns: 1fr; gap: 24px; }
+    .phones { height: 540px; margin: 0 auto; width: 100%; max-width: 420px; }
+    .phone { width: 240px; }
+    .phone-front { right: 8px; }
+    .phone-back { right: auto; left: 0; }
+    section { padding: 72px 0; }
+    .screens-row { overflow-x: auto; justify-content: flex-start; scroll-snap-type: x mandatory; padding: 0 24px 20px; gap: 24px; }
+    .screen-card { scroll-snap-align: center; transform: none !important; }
+    .features-grid { grid-template-columns: 1fr; }
+    .feat-hero { grid-column: span 1; }
+    .install-cols { grid-template-columns: 1fr; }
+    nav .links { display: none; }
+  }
+</style>
+<noscript><style>.reveal { opacity: 1; transform: none; }</style></noscript>
+</head>
+<body>
+
+<nav>
+  <div class="nav-inner">
+    <a class="brand" href="#"><img src="assets/logo-180.png" alt="Ankios logo">Ankios</a>
+    <div class="links">
+      <a href="#screens">Screens</a>
+      <a href="#features">Features</a>
+      <a href="#install">Install</a>
+    </div>
+    <a class="btn btn-ghost" href="https://github.com/edouaz/ankios">GitHub</a>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="hero-glow"></div>
+  <div class="wrap hero-inner">
+    <div>
+      <h1>The real Anki engine,<br><span class="grad">native on iPhone.</span></h1>
+      <p>Ankios wraps Anki's actual Rust backend in a fast SwiftUI app. Same scheduler, same sync, same cards as desktop Anki.</p>
+      <div class="hero-ctas">
+        <a class="btn btn-primary" href="https://github.com/edouaz/ankios/releases/latest">Download for iPhone</a>
+        <a class="btn btn-ghost" href="https://github.com/edouaz/ankios#-building">Build from source</a>
+      </div>
+    </div>
+    <div class="phones" id="tilt">
+      <div class="phone phone-back"><img src="assets/decks.png" alt="Deck list with due counts"></div>
+      <div class="phone phone-front"><img src="assets/review-a.png" alt="Reviewing a Japanese card with grading buttons"></div>
+    </div>
+  </div>
+</header>
+
+<section class="engine reveal">
+  <div class="wrap">
+    <h2>Nothing was reimplemented.</h2>
+    <p>Most mobile flashcard apps rebuild Anki's logic and get it subtly wrong. Ankios cross-compiles the unmodified <code>anki</code> crate for iOS: FSRS scheduling, SQLite storage, card templates, and AnkiWeb sync behave exactly like they do everywhere else, because it is the same code.</p>
+    <div class="stack">
+      <div class="layer">SwiftUI interface <span>Swift, iOS 26</span></div>
+      <div class="layer">Protobuf bridge <span>the same messages desktop uses</span></div>
+      <div class="layer core">Anki Rust backend <span>FSRS, storage, sync</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="screens reveal" id="screens">
+  <div class="wrap">
+    <h2>Small app. Full engine.</h2>
+    <div class="screens-row">
+      <figure class="screen-card">
+        <div class="phone"><img src="assets/decks.png" alt="Decks screen"></div>
+        <figcaption><b>Decks</b>Nested decks with live due counts</figcaption>
+      </figure>
+      <figure class="screen-card">
+        <div class="phone"><img src="assets/review-q.png" alt="Review screen showing a card question"></div>
+        <figcaption><b>Review</b>Cards render as real HTML, like desktop</figcaption>
+      </figure>
+      <figure class="screen-card">
+        <div class="phone"><img src="assets/stats.png" alt="Stats screen with review heatmap"></div>
+        <figcaption><b>Stats</b>Streaks, retention, and a review heatmap</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<section class="reveal" id="features">
+  <div class="wrap">
+    <h2>What it does today</h2>
+    <div class="features-grid">
+      <div class="feat feat-hero">
+        <h3>FSRS scheduling</h3>
+        <p>The modern spaced-repetition algorithm, straight from the Anki crate. Your intervals match desktop to the day, and undo works mid-session.</p>
+      </div>
+      <div class="feat">
+        <h3>AnkiWeb sync</h3>
+        <p>Sign in with your AnkiWeb account. Self-hosted sync servers work too.</p>
+      </div>
+      <div class="feat feat-tint">
+        <h3>APKG import</h3>
+        <p>Open shared decks from the Files app, straight into your collection.</p>
+      </div>
+      <div class="feat">
+        <h3>Images and audio</h3>
+        <p>Media is served to cards through a native URL scheme handler, with tap-to-replay sound.</p>
+      </div>
+      <div class="feat feat-tint">
+        <h3>Daily reminder</h3>
+        <p>One optional local notification, at the hour you pick. No account, no server.</p>
+      </div>
+      <div class="feat">
+        <h3>Confetti</h3>
+        <p>Finish a deck, get confetti. Streaks are hard, celebrate them.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="reveal" id="install">
+  <div class="wrap">
+    <h2>Get it on your phone</h2>
+    <div class="install-cols">
+      <div>
+        <div class="step">
+          <div class="step-n">1</div>
+          <div>
+            <h3>Grab the app</h3>
+            <p>Download <a href="https://github.com/edouaz/ankios/releases/latest">Ankios.ipa</a> from the latest GitHub release.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-n">2</div>
+          <div>
+            <h3>Sideload it</h3>
+            <p>Open the file with <a href="https://altstore.io">AltStore</a> or <a href="https://sideloadly.io">Sideloadly</a> and sign in with your free Apple ID.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-n">3</div>
+          <div>
+            <h3>Trust and launch</h3>
+            <p>On the phone: Settings, General, VPN &amp; Device Management, then trust your profile.</p>
+          </div>
+        </div>
+        <p class="install-note">Free Apple IDs re-sign apps every 7 days; AltStore automates the refresh. Requires iOS 26 or later.</p>
+      </div>
+      <div class="buildbox">
+        <h3>Prefer to build it yourself?</h3>
+        <p>The app compiles against an upstream Anki checkout. Full instructions live in the README.</p>
+        <pre>git clone https://github.com/ankitects/anki.git
+cd anki
+git clone https://github.com/edouaz/ankios.git ios
+<span class="c"># add "ios/rsbridge-ios" to the workspace members</span>
+ios/build-xcframework.sh
+ios/gen-proto.sh
+open ios/AnkiApp/AnkiApp.xcodeproj</pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="foot">
+      <div>
+        <div class="foot-left"><img src="assets/logo-180.png" alt="">Ankios</div>
+      </div>
+      <div class="foot-links">
+        <a href="https://github.com/edouaz/ankios">GitHub</a>
+        <a href="https://github.com/edouaz/ankios/releases/latest">Releases</a>
+        <a href="https://ko-fi.com/edouaz">Support on Ko-fi</a>
+      </div>
+    </div>
+    <p>Ankios code is MIT licensed; it links against Anki's AGPL-3.0 backend, so the compiled app is AGPL. Not affiliated with Ankitects. Anki is a trademark of Ankitects Pty Ltd.</p>
+  </div>
+</footer>
+
+<script>
+  // Scroll reveal
+  const io = new IntersectionObserver(
+    entries => entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); } }),
+    { threshold: 0.12 }
+  );
+  document.querySelectorAll(".reveal").forEach(el => io.observe(el));
+
+  // Gentle pointer tilt on the hero phones (desktop, motion-permitting only)
+  const tilt = document.getElementById("tilt");
+  const fine = matchMedia("(pointer: fine)").matches;
+  const motionOK = !matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (tilt && fine && motionOK) {
+    let raf = 0;
+    addEventListener("pointermove", e => {
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        const dx = (e.clientX / innerWidth - 0.5) * 8;
+        const dy = (e.clientY / innerHeight - 0.5) * 6;
+        tilt.style.transform = `perspective(1200px) rotateY(${dx}deg) rotateX(${-dy}deg)`;
+        raf = 0;
+      });
+    });
+  }
+</script>
+
+</body>
+</html>
