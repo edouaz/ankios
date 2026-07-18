@@ -4,7 +4,7 @@
 import SwiftUI
 
 // Change this to your own Ko-fi page (or any donation URL).
-private let donationURL = URL(string: "https://ko-fi.com/YOUR_HANDLE")!
+private let donationURL = URL(string: "https://ko-fi.com/edouaz")!
 
 /// App preferences. Backed by `@AppStorage` (UserDefaults) so every value is
 /// read on launch and persisted the moment it changes — no custom store.
