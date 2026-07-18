@@ -221,6 +221,10 @@ struct DecksView: View {
             }
         } else if syncStore.isSyncing {
             ProgressView()
+        } else if !syncStore.isOnline {
+            Image(systemName: "wifi.slash")
+                .foregroundStyle(.secondary)
+                .accessibilityLabel("Offline. Reviews are saved and will sync when you reconnect.")
         } else {
             Button {
                 Task {

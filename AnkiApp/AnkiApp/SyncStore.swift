@@ -2,6 +2,7 @@
 // License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
 
 import Foundation
+import Network
 
 /// Shared AnkiWeb sync state — the Decks toolbar indicator and the Account
 /// tab both read/drive this, so it lives in one place instead of being
@@ -16,6 +17,11 @@ final class SyncStore {
     private(set) var isSyncing = false
     var lastError: Error?
     private(set) var lastStatus: Anki_Sync_SyncStatusResponse.Required?
+    private(set) var isOnline = true
+
+    /// Reviews always work offline (the collection is local SQLite); this
+    /// only exists so queued changes are pushed the moment we're back.
+    private let pathMonitor = NWPathMonitor()
 
     private static let usernameDefaultsKey = "ankiweb_username"
     private static let currentEndpointKey = "sync_current_endpoint"
@@ -49,6 +55,18 @@ final class SyncStore {
         username = UserDefaults.standard.string(forKey: Self.usernameDefaultsKey)
         customEndpoint = UserDefaults.standard.string(forKey: Self.customEndpointKey)
         currentEndpoint = UserDefaults.standard.string(forKey: Self.currentEndpointKey)
+
+        pathMonitor.pathUpdateHandler = { [weak self] path in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                let cameBackOnline = !self.isOnline && path.status == .satisfied
+                self.isOnline = path.status == .satisfied
+                if cameBackOnline, self.isSignedIn, !self.isSyncing {
+                    await self.sync()
+                }
+            }
+        }
+        pathMonitor.start(queue: DispatchQueue(label: "sync.pathmonitor"))
     }
 
     func signIn(username: String, password: String) async throws {
@@ -83,7 +101,9 @@ final class SyncStore {
     }
 
     func sync() async {
-        guard let hkey else { return }
+        // Offline is not an error: changes stay queued locally and the
+        // path monitor triggers a sync when connectivity returns.
+        guard let hkey, isOnline else { return }
         isSyncing = true
         lastError = nil
         defer { isSyncing = false }

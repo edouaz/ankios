@@ -164,6 +164,7 @@
       var(--surface);
   }
   .feat-tint { background: linear-gradient(160deg, var(--surface-2), var(--surface)); }
+  .feat-wide { grid-column: span 2; }
 
   /* ---------- install ---------- */
   .install-cols {
@@ -229,7 +230,7 @@
     .screens-row { overflow-x: auto; justify-content: flex-start; scroll-snap-type: x mandatory; padding: 0 24px 20px; gap: 24px; }
     .screen-card { scroll-snap-align: center; transform: none !important; }
     .features-grid { grid-template-columns: 1fr; }
-    .feat-hero { grid-column: span 1; }
+    .feat-hero, .feat-wide { grid-column: span 1; }
     .install-cols { grid-template-columns: 1fr; }
     nav .links { display: none; }
   }
@@ -323,6 +324,10 @@
       <div class="feat feat-tint">
         <h3>Daily reminder</h3>
         <p>One optional local notification, at the hour you pick. No account, no server.</p>
+      </div>
+      <div class="feat feat-wide feat-tint">
+        <h3>Works offline</h3>
+        <p>Your whole collection, media included, lives on the phone. Review on a plane; the app syncs back by itself when the connection returns.</p>
       </div>
       <div class="feat">
         <h3>Confetti</h3>
