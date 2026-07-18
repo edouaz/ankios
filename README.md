@@ -14,6 +14,7 @@ No reimplemented scheduler, no half-compatible sync — the actual [`anki`](http
 - 🎴 **Review** — full-screen card rendering in a WKWebView (cards are real Anki HTML/CSS/JS), tap-to-reveal, 4-button grading, undo
 - 🧠 **FSRS scheduling** — the exact same scheduler as desktop Anki, because it *is* desktop Anki's code
 - 🔁 **AnkiWeb sync** — log in with your AnkiWeb account (self-hosted sync servers supported too)
+- 📴 **Offline mode** — decks and media are stored fully on-device; review anywhere, and the app syncs back automatically the moment your connection returns
 - 📦 **APKG import** — import `.apkg` deck packages from the Files app
 - 🖼🔊 **Media** — images served through a custom URL scheme handler, `[sound:...]` audio playback
 - 📊 **Stats** — review heatmap and per-deck next-due, straight from the backend's `graphs` RPC
