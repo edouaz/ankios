@@ -2,6 +2,8 @@
 
 **A native iOS Anki client, built with SwiftUI on top of Anki's real Rust backend.**
 
+🌐 **[ankios website](https://edouaz.github.io/ankios/)** · 📦 **[latest release](https://github.com/edouaz/ankios/releases/latest)**
+
 No reimplemented scheduler, no half-compatible sync — the actual [`anki`](https://github.com/ankitects/anki) crate (FSRS scheduler, SQLite storage, AnkiWeb sync, media, search) is cross-compiled for iOS and wrapped in a thin, modern SwiftUI interface.
 
 > ⚠️ Personal project, not affiliated with Ankitects. Not on the App Store — you build and sideload it yourself.
