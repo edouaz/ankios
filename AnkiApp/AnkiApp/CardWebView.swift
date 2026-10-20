@@ -29,19 +29,17 @@ struct CardWebView: UIViewRepresentable {
     }
 
     func updateUIView(_ webView: WKWebView, context: Context) {
-        // `overrideUserInterfaceStyle` keeps the WebView's own idea of
-        // light/dark in sync with SwiftUI's — without this, `color-scheme:
-        // light dark` in the document below can resolve independently of
-        // the (transparent) native background and produce e.g. white text
-        // on a white background.
+        // Keep WebKit's native appearance and document colors in sync with SwiftUI.
         webView.overrideUserInterfaceStyle = colorScheme == .dark ? .dark : .light
         let document = """
             <!doctype html>
             <html class="mobile \(colorScheme == .dark ? "nightMode" : "")"><head>
             <meta name="viewport" content="width=device-width, initial-scale=1">
-            <meta name="color-scheme" content="light dark">
+            <meta name="color-scheme" content="\(colorScheme == .dark ? "dark" : "light")">
             <style>
             body { background: Canvas; color: CanvasText; }
+            /* Match Anki: override the standard white .card in night mode. */
+            body.nightMode { background-color: Canvas; color: CanvasText; }
             \(css)
             </style>
             <script src="anki-assets:///mathjax-config.js"></script>

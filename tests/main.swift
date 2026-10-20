@@ -39,7 +39,16 @@ let check = #"""
     check(document.querySelector('#latex').naturalWidth === 12, 'desktop LaTeX image');
     check(document.body.classList.contains('card') && getComputedStyle(document.body).textAlign === 'center', 'Anki CSS');
     check(document.body.classList.contains('nightMode') === window.expectedDark && document.documentElement.classList.contains('nightMode') === window.expectedDark, 'night mode classes');
-    check(!window.expectedDark || getComputedStyle(document.body).color === 'rgb(240, 240, 240)', 'night mode CSS');
+    const style = getComputedStyle(document.body);
+    if (window.expectedDark) {
+        check(style.backgroundColor !== 'rgb(255, 255, 255)' && style.color !== 'rgb(0, 0, 0)', 'default card must follow dark theme');
+        if (window.expectedAnswer) {
+            check(style.backgroundColor === 'rgb(24, 32, 40)' && style.color === 'rgb(240, 240, 240)', 'custom night mode CSS');
+        }
+    } else {
+        check(style.backgroundColor === 'rgb(255, 255, 255)' && style.color === 'rgb(0, 0, 0)', 'light card colors preserved');
+    }
+    check(getComputedStyle(containers[0]).color === style.color, 'math inherits card text color');
     check(document.fonts.size > 0 && [...document.fonts].some(f => f.status === 'loaded'), 'local fonts');
     check(MathJax.config.loader.paths.mathjax === 'anki-assets:///mathjax', 'local loader');
     return true;

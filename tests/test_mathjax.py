@@ -22,7 +22,11 @@ with tempfile.TemporaryDirectory(prefix="ankios-mathjax-") as directory:
             html += f'<script>window.expectedDark = {str(dark).lower()}; window.expectedAnswer = {str(answer).lower()}; window.templateRan = (window.templateRan || 0) + 1;</script>'
             document = template.replace('\\(colorScheme == .dark ? "nightMode" : "")', "nightMode" if dark else "")
             document = document.replace('\\(Int(templateIndex) + 1)', '2')
-            document = document.replace('\\(css)', '.card2 { text-align: center; } .nightMode { color: rgb(240, 240, 240); }')
+            document = document.replace('\\(colorScheme == .dark ? "dark" : "light")', 'dark' if dark else 'light')
+            css = '.card { background-color: white; color: black; } .card2 { text-align: center; }'
+            if answer:
+                css += ' body.nightMode { background-color: rgb(24, 32, 40); color: rgb(240, 240, 240); }'
+            document = document.replace('\\(css)', css)
             document = document.replace('\\(html)', html)
             assert '\\(css)' not in document and '\\(html)' not in document
             (directory / f'{dark}-{answer}.html').write_text(document)
