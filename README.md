@@ -98,3 +98,7 @@ The code in this repository is [MIT](LICENSE). The app links against Anki's back
 ## 🙏 Credits
 
 Built on the shoulders of [Anki](https://apps.ankiweb.net) by Ankitects Pty Ltd and contributors.
+
+## Math formulas
+
+MathJax works offline on both card faces. See [math notation and desktop LaTeX images](docs/math.md).

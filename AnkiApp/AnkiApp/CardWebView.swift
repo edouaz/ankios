@@ -9,6 +9,7 @@ import WebKit
 struct CardWebView: UIViewRepresentable {
     let html: String
     let css: String
+    let templateIndex: UInt32
     let mediaSchemeHandler: MediaSchemeHandler
 
     @Environment(\.colorScheme) private var colorScheme
@@ -16,6 +17,10 @@ struct CardWebView: UIViewRepresentable {
     func makeUIView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
         config.setURLSchemeHandler(mediaSchemeHandler, forURLScheme: "anki-media")
+        config.setURLSchemeHandler(
+            MediaSchemeHandler(mediaFolderPath: Bundle.main.bundleURL
+                .appendingPathComponent("CardAssets").path),
+            forURLScheme: "anki-assets")
         let webView = WKWebView(frame: .zero, configuration: config)
         webView.isOpaque = false
         webView.backgroundColor = .clear
@@ -31,14 +36,26 @@ struct CardWebView: UIViewRepresentable {
         // on a white background.
         webView.overrideUserInterfaceStyle = colorScheme == .dark ? .dark : .light
         let document = """
-            <html><head>
+            <!doctype html>
+            <html class="mobile \(colorScheme == .dark ? "nightMode" : "")"><head>
             <meta name="viewport" content="width=device-width, initial-scale=1">
             <meta name="color-scheme" content="light dark">
             <style>
             body { background: Canvas; color: CanvasText; }
             \(css)
             </style>
-            </head><body>\(html)</body></html>
+            <script src="anki-assets:///mathjax-config.js"></script>
+            <script defer src="anki-assets:///mathjax/tex-chtml.js"></script>
+            </head><body class="card card\(Int(templateIndex) + 1) \(colorScheme == .dark ? "nightMode" : "")">
+            <div id="qa">\(html)</div>
+            <script>
+            document.addEventListener("DOMContentLoaded", function () {
+                MathJax.startup.promise.then(function () {
+                    return MathJax.typesetPromise([document.getElementById("qa")]);
+                }).catch(function (error) { console.error("MathJax:", error); });
+            });
+            </script>
+            </body></html>
             """
         // anki-media:/// as the base URL: relative media src="foo.jpg"
         // resolves to anki-media:///foo.jpg, handled by MediaSchemeHandler.

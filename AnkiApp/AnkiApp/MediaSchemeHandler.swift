@@ -21,6 +21,12 @@ final class MediaSchemeHandler: NSObject, WKURLSchemeHandler {
         }
         let filename = String(url.path.dropFirst())  // drop the leading "/"
         let fileURL = URL(fileURLWithPath: mediaFolderPath).appendingPathComponent(filename)
+        // Card scripts must not use either scheme to read outside its resource directory.
+        let root = URL(fileURLWithPath: mediaFolderPath).resolvingSymlinksInPath().path + "/"
+        guard fileURL.resolvingSymlinksInPath().path.hasPrefix(root) else {
+            task.didFailWithError(URLError(.noPermissionsToReadFile))
+            return
+        }
         guard let data = try? Data(contentsOf: fileURL) else {
             task.didFailWithError(URLError(.fileDoesNotExist))
             return

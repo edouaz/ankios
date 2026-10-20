@@ -82,7 +82,8 @@ struct ReviewView: View {
         VStack(spacing: 0) {
             CardWebView(
                 html: showingAnswer ? concat(rendered.answerNodes) : concat(rendered.questionNodes),
-                css: rendered.css, mediaSchemeHandler: mediaSchemeHandler)
+                css: rendered.css, templateIndex: card.card.templateIdx,
+                mediaSchemeHandler: mediaSchemeHandler)
             answerBar(card: card)
         }
         .toolbar {
