@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		AB1000000000000000000001 /* AppIcon.icon in Resources */ = {isa = PBXBuildFile; fileRef = AB1000000000000000000002 /* AppIcon.icon */; };
 		C2B000000000000000000001 /* CardAssets in Resources */ = {isa = PBXBuildFile; fileRef = C2F000000000000000000001 /* CardAssets */; };
 		06F876B663864F1E94A94826 /* deck_config.pb.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D505DA61179404BB384069D /* deck_config.pb.swift */; };
 		0746198F9AED4EBF8FF26D03 /* config.pb.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25CCA858331F419DBA88F5FD /* config.pb.swift */; };
@@ -55,6 +56,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		AB1000000000000000000002 /* AppIcon.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.icon; path = AppIcon.icon; sourceTree = "<group>"; };
 		C2F000000000000000000001 /* CardAssets */ = {isa = PBXFileReference; lastKnownFileType = folder; path = CardAssets; sourceTree = "<group>"; };
 		1701677152134DD3811E4F91 /* Keychain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Keychain.swift; sourceTree = "<group>"; };
 		233BB5A5FA8045B88C720DF0 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -192,6 +194,7 @@
 				CD6E15A48C5D490FBC5DF695 /* SyncLoginSheet.swift */,
 				FD491A1B65314C6ABB08CBCC /* SyncStore.swift */,
 				233BB5A5FA8045B88C720DF0 /* Assets.xcassets */,
+				AB1000000000000000000002 /* AppIcon.icon */,
 			);
 			path = AnkiApp;
 			sourceTree = "<group>";
@@ -266,6 +269,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				6903C973A5294D9680A739B6 /* Assets.xcassets in Resources */,
+				AB1000000000000000000001 /* AppIcon.icon in Resources */,
 				C2B000000000000000000001 /* CardAssets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
