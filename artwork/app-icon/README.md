@@ -4,6 +4,6 @@ AppIcon.icon in AnkiApp/AnkiApp is based on the supplied lighAnkios.icon and ank
 
 The target includes AppIcon.icon as a resource and retains the existing AppIcon build setting and conventional asset catalog. Deployment, bundle ID and signing settings are unchanged.
 
-Validation: project plist syntax passes. Apple asset compilation passes. Full unsigned Release build resolves SwiftProtobuf but stops because Anki.xcframework is absent. No replacement IPA has been produced or published. Device appearance and IPA installation are unverified.
+Validation: Apple native icon compilation and unsigned Release device build pass with Xcode 27.1. The compiled asset catalog includes Default, Dark and Tint icon resources. IPA 0.2.3 (build 5) has minimum iOS 26.0, unchanged bundle identifier, no code signature or provisioning profile, and passes ZIP integrity verification. Physical device appearance and installation remain unverified.
 
-To finish: restore the existing Anki.xcframework at repository root (or rebuild it using build-xcframework.sh inside the upstream Anki workspace), then build Release for generic iOS with CODE_SIGNING_ALLOWED=NO. Package the resulting app under Payload/ in a ZIP named Ankios.ipa. Verify no signing identity/provisioning profile is included before publishing a release.
+Build source: upstream Anki tag 26.05, commit e64c6b1aee3e8d668fb8bbe084beada8e070d985, including core/desktop translation submodules. Register ios/rsbridge-ios in the workspace, run gen-proto.sh and build-xcframework.sh, then build Release for generic iOS with CODE_SIGNING_ALLOWED=NO. Package the app under Payload/ using ZIP. The framework build script pins the native deployment minimum to 26.0 unless explicitly overridden.
