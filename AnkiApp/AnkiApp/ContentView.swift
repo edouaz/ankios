@@ -23,10 +23,10 @@ struct ContentView: View {
                         .tabItem { Label("Settings", systemImage: "gearshape") }
                 }
             } else if let openError {
-                ContentUnavailableView(
+                UnavailableView(
                     "Couldn't Open Collection",
                     systemImage: "exclamationmark.triangle",
-                    description: Text(String(describing: openError)))
+                    description: String(describing: openError))
             } else {
                 ProgressView()
             }

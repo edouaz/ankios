@@ -31,8 +31,8 @@ struct CelebrationView: View {
             }
         }
         .allowsHitTesting(false)
-        .sensoryFeedback(trigger: fallen) { _, new in
-            hapticsEnabled && new ? .success : nil
+        .onChange(of: fallen) { new in
+            if hapticsEnabled && new { UINotificationFeedbackGenerator().notificationOccurred(.success) }
         }
         .onAppear { fallen = true }
     }

@@ -24,12 +24,15 @@ struct StatsView: View {
                             }
                             deckDueSection
                         }
+                        // Wide enough for the full 53-week heatmap on iPad.
+                        .frame(maxWidth: 830)
+                        .frame(maxWidth: .infinity)
                         .padding()
                     }
                 } else if loadError != nil {
-                    ContentUnavailableView(
+                    UnavailableView(
                         "Couldn't Load Stats", systemImage: "chart.bar",
-                        description: Text(String(describing: loadError!)))
+                        description: String(describing: loadError!))
                 } else {
                     ProgressView()
                 }
@@ -71,7 +74,7 @@ struct StatsView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
-        .background(color.opacity(0.12), in: .rect(cornerRadius: 14))
+        .background(color.opacity(0.12), in: RoundedRectangle(cornerRadius: 14))
     }
 
     // MARK: Next review by deck

@@ -4,7 +4,7 @@
 import SwiftUI
 
 struct SyncLoginSheet: View {
-    var syncStore: SyncStore
+    @ObservedObject var syncStore: SyncStore
 
     @Environment(\.dismiss) private var dismiss
     @State private var username = ""

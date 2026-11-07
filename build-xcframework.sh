@@ -11,7 +11,7 @@ ROOT="$(cd .. && pwd)"
 
 source "$HOME/.cargo/env"
 export PATH="/opt/homebrew/bin:$PATH"
-export IPHONEOS_DEPLOYMENT_TARGET="${IPHONEOS_DEPLOYMENT_TARGET:-26.0}"
+export IPHONEOS_DEPLOYMENT_TARGET="${IPHONEOS_DEPLOYMENT_TARGET:-16.0}"
 export PROTOC="${PROTOC:-/opt/homebrew/bin/protoc}"
 
 CFLAGS="${CFLAGS:-} -miphoneos-version-min=$IPHONEOS_DEPLOYMENT_TARGET" cargo build --release --manifest-path "$ROOT/Cargo.toml" --target aarch64-apple-ios -p rsbridge-ios

@@ -1,6 +1,7 @@
 // Copyright: Ankitects Pty Ltd and contributors
 // License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
 
+import Combine
 import Foundation
 import Network
 
@@ -8,16 +9,15 @@ import Network
 /// tab both read/drive this, so it lives in one place instead of being
 /// duplicated per screen.
 @MainActor
-@Observable
-final class SyncStore {
+final class SyncStore: ObservableObject {
     private let backend: Backend
 
-    private(set) var hkey: String?
-    private(set) var username: String?
-    private(set) var isSyncing = false
-    var lastError: Error?
-    private(set) var lastStatus: Anki_Sync_SyncStatusResponse.Required?
-    private(set) var isOnline = true
+    @Published private(set) var hkey: String?
+    @Published private(set) var username: String?
+    @Published private(set) var isSyncing = false
+    @Published var lastError: Error?
+    @Published private(set) var lastStatus: Anki_Sync_SyncStatusResponse.Required?
+    @Published private(set) var isOnline = true
 
     /// Reviews always work offline (the collection is local SQLite); this
     /// only exists so queued changes are pushed the moment we're back.
@@ -31,7 +31,7 @@ final class SyncStore {
 
     /// User-set self-hosted sync server URL (nil = AnkiWeb). Not a secret,
     /// so UserDefaults is fine.
-    var customEndpoint: String? {
+    @Published var customEndpoint: String? {
         didSet {
             UserDefaults.standard.set(customEndpoint, forKey: Self.customEndpointKey)
             // Server changed — any assigned host from the old one is stale.

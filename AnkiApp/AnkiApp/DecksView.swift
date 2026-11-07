@@ -39,11 +39,11 @@ private func flatten(_ node: Anki_Decks_DeckTreeNode, level: Int = 0, prefix: St
 
 struct DecksView: View {
     let backend: Backend
-    var syncStore: SyncStore
+    @ObservedObject var syncStore: SyncStore
 
     @State private var rows: [DeckRow]?
     @State private var loadError: Error?
-    @State private var reviewingDeckID: Int64?
+    @State private var reviewPath: [Int64] = []
     @State private var showingLoginSheet = false
     @State private var showingImporter = false
     @State private var isImporting = false
@@ -53,13 +53,13 @@ struct DecksView: View {
     @State private var actionError: String?
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $reviewPath) {
             Group {
                 if let rows {
                     if rows.isEmpty {
-                        ContentUnavailableView(
+                        UnavailableView(
                             "No Decks", systemImage: "rectangle.stack",
-                            description: Text("Sync to pull your decks from AnkiWeb."))
+                            description: "Sync to pull your decks from AnkiWeb.")
                     } else {
                         List(rows) { row in
                             deckRow(row)
@@ -67,14 +67,14 @@ struct DecksView: View {
                         .refreshable { await syncOrReload() }
                     }
                 } else if loadError != nil {
-                    ContentUnavailableView(
+                    UnavailableView(
                         "Couldn't Load Decks", systemImage: "exclamationmark.triangle")
                 } else {
                     ProgressView()
                 }
             }
             .navigationTitle("Decks")
-            .navigationDestination(item: $reviewingDeckID) { deckID in
+            .navigationDestination(for: Int64.self) { deckID in
                 ReviewView(backend: backend, deckID: deckID)
             }
             .toolbar {
@@ -174,7 +174,7 @@ struct DecksView: View {
             // Navigate immediately — ReviewView selects the deck during its
             // own loading state. Awaiting setCurrentDeck here made taps feel
             // dead (nothing on screen until the RPC returned).
-            reviewingDeckID = row.id
+            reviewPath = [row.id]
         } label: {
             deckRowLabel(row)
         }
@@ -194,7 +194,7 @@ struct DecksView: View {
         }
         .contextMenu {
             Button {
-                reviewingDeckID = row.id
+                reviewPath = [row.id]
             } label: {
                 Label("Study", systemImage: "play.fill")
             }

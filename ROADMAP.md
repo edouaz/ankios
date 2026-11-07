@@ -1,5 +1,9 @@
 # Native Anki iOS — Roadmap
 
+> Historical implementation plan. For the current 0.2.5 release, installation,
+> iOS 16+/iPadOS 16+ requirements and known limitations, see [README.md](README.md).
+> Earlier iOS 26 targets and unchecked tasks below describe the original plan.
+
 Personal project: rebuild an AnkiMobile-style app in SwiftUI, reusing Anki's
 Rust backend (`rslib/`) as-is. **No business logic gets rewritten**: the FSRS
 scheduler, SQLite storage, AnkiWeb sync, media sync, search — all of it already

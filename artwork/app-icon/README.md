@@ -1,5 +1,17 @@
 # Native app icon
 
+## Current release: 0.2.5 (build 7)
+
+The supplied unsigned IPA declares minimum OS 16.0 and device families 1 and 2
+(iPhone and iPad). Its executable has LC_BUILD_VERSION minos 16.0. The bundle
+contains legacy AppIcon PNGs and CFBundleIcons entries for both device families.
+ZIP integrity and the absence of code signatures/provisioning profiles were
+checked for the 0.2.5 publication. Physical-device appearance on iOS/iPadOS 16
+has not been verified. Website logos are resized from the conventional light
+app icon; screenshots are unchanged.
+
+## Historical icon work (0.2.3)
+
 AppIcon.icon in AnkiApp/AnkiApp is based on the supplied lighAnkios.icon and ankiosDark.icon documents. The original images, scale, positioning, shadow and translucency are retained. The light layer uses opacity 1 normally and 0 in Dark; the dark layer uses opacity 0 normally and 1 in Dark. Mono uses the light silhouette and native system rendering.
 
 The target includes AppIcon.icon as a resource and retains the existing AppIcon build setting and conventional asset catalog. Deployment, bundle ID and signing settings are unchanged.

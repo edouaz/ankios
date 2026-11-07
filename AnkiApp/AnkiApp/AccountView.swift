@@ -4,7 +4,7 @@
 import SwiftUI
 
 struct AccountView: View {
-    var syncStore: SyncStore
+    @ObservedObject var syncStore: SyncStore
 
     @State private var showingLoginSheet = false
 

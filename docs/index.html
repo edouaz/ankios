@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Ankios: the real Anki engine, native on iPhone</title>
-<meta name="description" content="A native SwiftUI Anki client built on Anki's actual Rust backend. FSRS scheduling, AnkiWeb sync, real card rendering. Free and open source.">
+<title>Ankios — Anki for iPhone and iPad</title>
+<meta name="description" content="A native SwiftUI Anki client built on Anki's actual Rust backend. iOS 16+ and iPadOS 16+. Anki scheduling, AnkiWeb sync and offline cards. Free and open source.">
 <meta property="og:title" content="Ankios">
-<meta property="og:description" content="The real Anki engine, native on iPhone. FSRS, AnkiWeb sync, open source.">
+<meta property="og:description" content="Anki for iPhone and iPad. iOS 16+ and iPadOS 16+. Free and open source.">
 <meta property="og:image" content="https://edouaz.github.io/ankios/assets/logo.png">
 <link rel="icon" type="image/png" href="assets/logo-180.png">
 <link rel="apple-touch-icon" href="assets/logo-180.png">
@@ -71,7 +71,7 @@
   nav .btn { padding: 8px 16px; font-size: 14px; }
 
   /* ---------- hero ---------- */
-  .hero { position: relative; padding: 72px 0 40px; }
+  .hero { position: relative; padding: 72px 0 40px; overflow: hidden; }
   .hero-glow {
     position: absolute; top: -180px; right: -160px; width: 720px; height: 720px;
     background: radial-gradient(circle, rgba(16, 122, 250, 0.16) 0%, transparent 60%);
@@ -255,11 +255,12 @@
   <div class="hero-glow"></div>
   <div class="wrap hero-inner">
     <div>
-      <h1>The real Anki engine,<br><span class="grad">native on iPhone.</span></h1>
-      <p>Ankios wraps Anki's actual Rust backend in a fast SwiftUI app. Same scheduler, same sync, same cards as desktop Anki.</p>
+      <h1>The real Anki engine,<br><span class="grad">native on iPhone and iPad.</span></h1>
+      <p>Ankios wraps Anki's actual Rust backend in a fast SwiftUI app. Study offline, sync with AnkiWeb, and review your cards on iPhone or iPad.</p>
+      <p class="install-note">iOS 16+ · iPadOS 16+ · Free and open source</p>
       <div class="hero-ctas">
-        <a class="btn btn-primary" href="https://github.com/edouaz/ankios/releases/latest">Download for iPhone</a>
-        <a class="btn btn-ghost" href="https://github.com/edouaz/ankios#-building">Build from source</a>
+        <a class="btn btn-primary" href="https://github.com/edouaz/ankios/releases/tag/v0.2.5">Download v0.2.5</a>
+        <a class="btn btn-ghost" href="https://github.com/edouaz/ankios#building">Build from source</a>
       </div>
     </div>
     <div class="phones" id="tilt">
@@ -271,10 +272,10 @@
 
 <section class="engine reveal">
   <div class="wrap">
-    <h2>Nothing was reimplemented.</h2>
-    <p>Most mobile flashcard apps rebuild Anki's logic and get it subtly wrong. Ankios cross-compiles the unmodified <code>anki</code> crate for iOS: FSRS scheduling, SQLite storage, card templates, and AnkiWeb sync behave exactly like they do everywhere else, because it is the same code.</p>
+    <h2>Powered by Anki’s Rust backend.</h2>
+    <p>Ankios cross-compiles the upstream <code>anki</code> crate for scheduling, SQLite storage and AnkiWeb sync, then adds a native SwiftUI interface and HTML card rendering. The app exposes a focused subset of the backend’s features.</p>
     <div class="stack">
-      <div class="layer">SwiftUI interface <span>Swift, iOS 26</span></div>
+      <div class="layer">SwiftUI interface <span>iOS 16+ · iPadOS 16+</span></div>
       <div class="layer">Protobuf bridge <span>the same messages desktop uses</span></div>
       <div class="layer core">Anki Rust backend <span>FSRS, storage, sync</span></div>
     </div>
@@ -307,7 +308,7 @@
     <div class="features-grid">
       <div class="feat feat-hero">
         <h3>FSRS scheduling</h3>
-        <p>The modern spaced-repetition algorithm, straight from the Anki crate. Your intervals match desktop to the day, and undo works mid-session.</p>
+        <p>Upstream Anki scheduling, including FSRS when enabled in your collection. Grade with four buttons, undo, bury or suspend during review.</p>
       </div>
       <div class="feat">
         <h3>AnkiWeb sync</h3>
@@ -327,11 +328,11 @@
       </div>
       <div class="feat feat-wide feat-tint">
         <h3>Works offline</h3>
-        <p>Your whole collection, media included, lives on the phone. Review on a plane; the app syncs back by itself when the connection returns.</p>
+        <p>Your collection and downloaded media live on your device. While the app is running and signed in, sync resumes when the connection returns.</p>
       </div>
       <div class="feat">
-        <h3>Confetti</h3>
-        <p>Finish a deck, get confetti. Streaks are hard, celebrate them.</p>
+        <h3>Offline math</h3>
+        <p>Bundled MathJax renders formulas on both card faces, with local fonts and no CDN. Desktop-generated LaTeX images display through synced media.</p>
       </div>
     </div>
   </div>
@@ -339,14 +340,14 @@
 
 <section class="reveal" id="install">
   <div class="wrap">
-    <h2>Get it on your phone</h2>
+    <h2>Get it on your iPhone or iPad</h2>
     <div class="install-cols">
       <div>
         <div class="step">
           <div class="step-n">1</div>
           <div>
             <h3>Grab the app</h3>
-            <p>Download <a href="https://github.com/edouaz/ankios/releases/latest">Ankios.ipa</a> from the latest GitHub release.</p>
+            <p>Download <a href="https://github.com/edouaz/ankios/releases/tag/v0.2.5">Ankios-0.2.5-unsigned.ipa</a> from the latest GitHub release.</p>
           </div>
         </div>
         <div class="step">
@@ -360,18 +361,20 @@
           <div class="step-n">3</div>
           <div>
             <h3>Trust and launch</h3>
-            <p>On the phone: Settings, General, VPN &amp; Device Management, then trust your profile.</p>
+            <p>On your device: Settings, General, VPN &amp; Device Management, then trust your profile.</p>
           </div>
         </div>
-        <p class="install-note">Free Apple IDs re-sign apps every 7 days; AltStore automates the refresh. Requires iOS 26 or later.</p>
+        <p class="install-note">Version 0.2.5 (build 7) requires iOS 16.0+ or iPadOS 16.0+. The IPA is unsigned and must be signed for your device. Free Apple ID provisioning normally needs refreshing every 7 days. Enable Developer Mode if prompted.</p>
+        <p class="install-note">Liquid Glass is available on OS 26+, with fallback controls on earlier versions. Minimum OS and device families are verified in the IPA; physical-device coverage is not yet complete. See the <a href="https://github.com/edouaz/ankios#current-limitations">current limitations</a> before syncing.</p>
       </div>
       <div class="buildbox">
         <h3>Prefer to build it yourself?</h3>
         <p>The app compiles against an upstream Anki checkout. Full instructions live in the README.</p>
-        <pre>git clone https://github.com/ankitects/anki.git
+        <pre>git clone --branch 26.05 --recurse-submodules https://github.com/ankitects/anki.git
 cd anki
 git clone https://github.com/edouaz/ankios.git ios
 <span class="c"># add "ios/rsbridge-ios" to the workspace members</span>
+rustup target add aarch64-apple-ios aarch64-apple-ios-sim
 ios/build-xcframework.sh
 ios/gen-proto.sh
 open ios/AnkiApp/AnkiApp.xcodeproj</pre>
@@ -388,11 +391,11 @@ open ios/AnkiApp/AnkiApp.xcodeproj</pre>
       </div>
       <div class="foot-links">
         <a href="https://github.com/edouaz/ankios">GitHub</a>
-        <a href="https://github.com/edouaz/ankios/releases/latest">Releases</a>
+        <a href="https://github.com/edouaz/ankios/releases/tag/v0.2.5">Releases</a>
         <a href="https://ko-fi.com/edouaz">Support on Ko-fi</a>
       </div>
     </div>
-    <p>Ankios code is MIT licensed; it links against Anki's AGPL-3.0 backend, so the compiled app is AGPL. Not affiliated with Ankitects. Anki is a trademark of Ankitects Pty Ltd.</p>
+    <p>Ankios original code is <a href="https://github.com/edouaz/ankios/blob/main/LICENSE">MIT licensed</a>; it links against Anki's AGPL-3.0 backend, so the compiled app is AGPL. Not affiliated with Ankitects. Anki is a trademark of Ankitects Pty Ltd.</p>
   </div>
 </footer>
 

@@ -78,7 +78,7 @@ struct SettingsView: View {
             }
             .navigationTitle("Settings")
             .task { await loadLimits() }
-            .onChange(of: notificationsEnabled) { _, on in
+            .onChange(of: notificationsEnabled) { on in
                 Task {
                     let scheduled = await Notifications.update(
                         enabled: on, at: reminderComponents)
@@ -86,7 +86,7 @@ struct SettingsView: View {
                     if on && !scheduled { notificationsEnabled = false }
                 }
             }
-            .onChange(of: reminderMinutes) { _, _ in
+            .onChange(of: reminderMinutes) { _ in
                 guard notificationsEnabled else { return }
                 Task { await Notifications.update(enabled: true, at: reminderComponents) }
             }

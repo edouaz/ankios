@@ -1,104 +1,111 @@
-# 📱 Ankios
+<p align="center">
+  <img src="docs/assets/logo.png" alt="Ankios app icon" width="128" height="128">
+</p>
 
-**A native iOS Anki client, built with SwiftUI on top of Anki's real Rust backend.**
+# Ankios
 
-🌐 **[ankios website](https://edouaz.github.io/ankios/)** · 📦 **[latest release](https://github.com/edouaz/ankios/releases/latest)**
+**A native Anki client for iPhone and iPad, built with SwiftUI and Anki’s Rust backend.**
 
-No reimplemented scheduler, no half-compatible sync — the actual [`anki`](https://github.com/ankitects/anki) crate (FSRS scheduler, SQLite storage, AnkiWeb sync, media, search) is cross-compiled for iOS and wrapped in a thin, modern SwiftUI interface.
+[Website](https://edouaz.github.io/ankios/) · [Download v0.2.5](https://github.com/edouaz/ankios/releases/tag/v0.2.5) · [Report an issue](https://github.com/edouaz/ankios/issues)
 
-> ⚠️ Personal project, not affiliated with Ankitects. Not on the App Store — you build and sideload it yourself.
+Ankios uses the upstream `anki` crate for scheduling, collection storage and AnkiWeb sync. Cards render as HTML/CSS/JavaScript in a WKWebView, with bundled MathJax for offline formulas.
 
-## ✨ Features
+| Current release | Requirements | Distribution |
+| --- | --- | --- |
+| **0.2.5 · build 7** | **iOS 16.0+ · iPadOS 16.0+** | Unsigned IPA for sideloading |
 
-- 🗂 **Decks** — full deck tree with due-count badges, swipe to delete or restart, deck creation
-- 🎴 **Review** — full-screen card rendering in a WKWebView (cards are real Anki HTML/CSS/JS), tap-to-reveal, 4-button grading, undo
-- 🧠 **FSRS scheduling** — the exact same scheduler as desktop Anki, because it *is* desktop Anki's code
-- 🔁 **AnkiWeb sync** — log in with your AnkiWeb account (self-hosted sync servers supported too)
-- 📴 **Offline mode** — decks and media are stored fully on-device; review anywhere, and the app syncs back automatically the moment your connection returns
-- 📦 **APKG import** — import `.apkg` deck packages from the Files app
-- 🖼🔊 **Media** — images served through a custom URL scheme handler, `[sound:...]` audio playback
-- 📊 **Stats** — review heatmap and per-deck next-due, straight from the backend's `graphs` RPC
-- 🔔 **Daily reminder** — optional local notification
-- 🎉 **Confetti** when you finish a deck. Non-negotiable.
+The supplied IPA declares both iPhone and iPad support and a minimum OS of 16.0; its executable also targets iOS 16.0. Liquid Glass is used on iOS/iPadOS 26+, with fallback controls on earlier versions. These are verified build requirements; physical-device testing across supported OS versions has not been completed.
 
-## 🏗 How it works
+Personal project, not affiliated with Ankitects. Not available on the App Store.
 
+## Features
+
+- **Decks** — nested deck list, due counts, create, delete and restart decks.
+- **Review** — question/answer rendering, four grading buttons, undo, bury and suspend, plus audio replay.
+- **Anki scheduling** — upstream scheduling, including FSRS when enabled in the collection.
+- **Sync** — AnkiWeb login, collection and media sync, and custom sync server settings.
+- **Offline study** — collection and downloaded media stay on-device; while the app is running, sync resumes on reconnection when signed in.
+- **Import** — open `.apkg` packages through the Files picker.
+- **Media and math** — local images, `[sound:...]` audio and bundled MathJax on both card faces. [Math support and desktop LaTeX images](docs/math.md).
+- **Statistics** — review heatmap, streak, retention and per-deck next due.
+- **Preferences** — daily card limits, optional haptics and a daily local reminder.
+- **iPad** — portrait/landscape support and constrained reading and grading widths.
+
+<p align="center">
+  <img src="docs/assets/decks.png" alt="Deck list with due counts" width="220">
+  <img src="docs/assets/review-q.png" alt="Card review question" width="220">
+  <img src="docs/assets/stats.png" alt="Review statistics and heatmap" width="220">
+</p>
+
+Screenshots illustrate the existing interface; system appearance varies by OS version.
+
+## Install
+
+1. Download **`Ankios-0.2.5-unsigned.ipa`** from [release v0.2.5](https://github.com/edouaz/ankios/releases/tag/v0.2.5).
+2. Sign and install it using a sideloading tool such as [AltStore Classic](https://altstore.io/) or [Sideloadly](https://sideloadly.io/), following that tool’s instructions for your device.
+3. Trust the developer profile in **Settings → General → VPN & Device Management** if prompted, and enable Developer Mode if required.
+
+The IPA is unsigned and must be signed for your device. Free Apple ID provisioning normally expires after seven days and needs refreshing. When updating, use the same signing identity and bundle identifier to retain the existing app’s data.
+
+The release includes a SHA-256 checksum:
+
+```sh
+shasum -a 256 -c Ankios-0.2.5-unsigned.ipa.sha256
 ```
-┌────────────────────────────┐
-│  SwiftUI app (AnkiApp/)    │  pure Swift UI, iOS 26+
-├────────────────────────────┤
-│  Backend.swift (actor)     │  hand-written wrapper, ~12 RPCs
-├────────────────────────────┤
-│  swift-protobuf messages   │  generated by gen-proto.sh
-├────────────────────────────┤
-│  rsbridge-ios (C FFI)      │  tiny Rust staticlib, protobuf bytes in/out
-├────────────────────────────┤
-│  anki crate (rslib)        │  upstream Anki backend, unmodified
-└────────────────────────────┘
-```
 
-Everything crosses the Rust↔Swift boundary as protobuf bytes, mirroring how Anki's own Python layer talks to the backend. The Rust side is packaged as `Anki.xcframework` (device + simulator).
+### Current limitations
 
-## 📲 Install (no build required)
+Ankios exposes a subset of Anki’s backend; it is not a complete replacement for desktop Anki. Use desktop Anki for note/template editing and generating LaTeX images. Automatic reconnection sync runs while the app is active, not as a guaranteed background service. Full-sync conflicts currently default to downloading the server collection, with no direction picker; keep a desktop backup before syncing important changes.
 
-Grab `Ankios.ipa` from the [latest release](https://github.com/edouaz/ankios/releases/latest) and sideload it onto your iPhone:
+## Building
 
-1. Install [AltStore](https://altstore.io) (or [Sideloadly](https://sideloadly.io)) on your Mac/PC and pair it with your iPhone.
-2. Open the `.ipa` with it and sign in with your (free) Apple ID — it signs the app for your device.
-3. Trust the developer profile on the phone: **Settings → General → VPN & Device Management**.
+Use a Mac with **Xcode 26 or later** (Icon Composer support), Rust via [rustup](https://rustup.rs/), and `protoc` plus the Swift protobuf generator (`brew install protobuf swift-protobuf`). The supplied IPA was built with Xcode 27.1.
 
-> ℹ️ The `.ipa` is unsigned (this app isn't on the App Store), which is exactly what sideloading tools expect. With a free Apple ID the app must be re-signed every 7 days — AltStore does this automatically. Requires iOS 26+.
+The bridge expects an upstream Anki checkout. The project was developed against **Anki 26.05**, commit `e64c6b1aee3e8d668fb8bbe084beada8e070d985`.
 
-## 🚀 Building
-
-This repo contains only the iOS app. It builds against upstream Anki's source, which you check out next to it.
-
-**Prerequisites:** Xcode 26+, [rustup](https://rustup.rs), Homebrew `protoc` + `swift-protobuf` (`brew install protobuf swift-protobuf`).
-
-```bash
-# 1. Get upstream Anki (version 26.05 is what this app is developed against)
-git clone https://github.com/ankitects/anki.git
+```sh
+git clone --branch 26.05 --recurse-submodules https://github.com/ankitects/anki.git
 cd anki
-
-# 2. Put this repo inside it as ios/
 git clone https://github.com/edouaz/ankios.git ios
 
-# 3. Register the bridge crate in Anki's workspace:
-#    in the root Cargo.toml, add "ios/rsbridge-ios" to [workspace] members
-
-# 4. Add the iOS Rust targets
+# Add "ios/rsbridge-ios" to [workspace].members in Anki’s root Cargo.toml.
 rustup target add aarch64-apple-ios aarch64-apple-ios-sim
-
-# 5. Build the Rust backend → XCFramework
 ios/build-xcframework.sh
-
-# 6. Generate the Swift protobuf messages
 ios/gen-proto.sh
-
-# 7. Build & run the app
 open ios/AnkiApp/AnkiApp.xcodeproj
 ```
 
-Then run on a simulator or your device from Xcode as usual.
+Choose your signing team in Xcode before running on a device. The framework script defaults to deployment target 16.0 and packages device and Apple Silicon simulator libraries; keep the app and native library deployment targets aligned.
 
-## 📁 Repo layout
+### Architecture
 
-| Path | What it is |
-|---|---|
-| `AnkiApp/` | The SwiftUI Xcode project |
-| `rsbridge-ios/` | Minimal Rust C-FFI bridge crate (4 functions) |
-| `build-xcframework.sh` | Cross-compiles rslib and packages `Anki.xcframework` |
-| `gen-proto.sh` | Generates Swift protobuf messages from Anki's `.proto` files |
-| `ROADMAP.md` | The living development plan — architecture decisions and progress |
+```text
+SwiftUI interface → Backend.swift actor → SwiftProtobuf messages
+                 → rsbridge-ios C FFI → upstream Anki Rust backend
+```
 
-## 📄 License
+The bridge exchanges protobuf bytes, following the same protocol as Anki’s Python layer. Generated Swift messages and `Anki.xcframework` are build outputs and are not committed.
 
-The code in this repository is [MIT](LICENSE). The app links against Anki's backend, which is AGPL-3.0 — so the compiled app as a whole is AGPL. No Anki source code is included here.
+| Path | Purpose |
+| --- | --- |
+| `AnkiApp/` | SwiftUI app and Xcode project |
+| `rsbridge-ios/` | Rust static library and C interface |
+| `build-xcframework.sh` | Device/simulator backend build |
+| `gen-proto.sh` | Swift protobuf generation |
+| `docs/` | GitHub Pages website, screenshots and math documentation |
+| `tests/` | Offline WKWebView rendering checks |
+| `ROADMAP.md` | Historical implementation plan |
 
-## 🙏 Credits
+Run the existing rendering checks on macOS:
 
-Built on the shoulders of [Anki](https://apps.ankiweb.net) by Ankitects Pty Ltd and contributors.
+```sh
+python3 tests/test_mathjax.py
+```
 
-## Math formulas
+This checks the production card document and resource handler in a macOS WKWebView; it does not replace iOS device or sync testing.
 
-MathJax works offline on both card faces. See [math notation and desktop LaTeX images](docs/math.md).
+## License and credits
+
+This repository’s original code is provided under the [MIT License](LICENSE). The app links Anki’s AGPL backend; the compiled application is governed by the AGPL. Bundled MathJax is Apache-2.0 licensed. See [third-party notices](THIRD_PARTY_NOTICES.md) and individual source headers for details.
+
+Built on [Anki](https://apps.ankiweb.net/) by Ankitects and contributors. [Support development](https://ko-fi.com/edouaz).

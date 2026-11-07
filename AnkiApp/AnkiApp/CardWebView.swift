@@ -31,20 +31,24 @@ struct CardWebView: UIViewRepresentable {
     func updateUIView(_ webView: WKWebView, context: Context) {
         // Keep WebKit's native appearance and document colors in sync with SwiftUI.
         webView.overrideUserInterfaceStyle = colorScheme == .dark ? .dark : .light
+        // Note types style dark mode through either class, as in desktop Anki.
+        let nightClasses = colorScheme == .dark ? "nightMode night_mode" : ""
         let document = """
             <!doctype html>
-            <html class="mobile \(colorScheme == .dark ? "nightMode" : "")"><head>
+            <html class="mobile \(nightClasses)"><head>
             <meta name="viewport" content="width=device-width, initial-scale=1">
             <meta name="color-scheme" content="\(colorScheme == .dark ? "dark" : "light")">
             <style>
-            body { background: Canvas; color: CanvasText; }
+            body { background: \(colorScheme == .dark ? "#000" : "#fff"); color: \(colorScheme == .dark ? "#fff" : "#000"); }
             /* Match Anki: override the standard white .card in night mode. */
-            body.nightMode { background-color: Canvas; color: CanvasText; }
+            body.nightMode { background-color: #000; color: #fff; }
+            /* Keep long text readable on iPad; cards can still override. */
+            #qa { max-width: 800px; margin: 0 auto; }
             \(css)
             </style>
             <script src="anki-assets:///mathjax-config.js"></script>
             <script defer src="anki-assets:///mathjax/tex-chtml.js"></script>
-            </head><body class="card card\(Int(templateIndex) + 1) \(colorScheme == .dark ? "nightMode" : "")">
+            </head><body class="card card\(Int(templateIndex) + 1) \(nightClasses)">
             <div id="qa">\(html)</div>
             <script>
             document.addEventListener("DOMContentLoaded", function () {

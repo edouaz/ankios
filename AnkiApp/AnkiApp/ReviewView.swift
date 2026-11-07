@@ -50,9 +50,9 @@ struct ReviewView: View {
                     ProgressView()
                 }
             } else if loadError != nil {
-                ContentUnavailableView(
+                UnavailableView(
                     "Couldn't Load Card", systemImage: "exclamationmark.triangle",
-                    description: Text(String(describing: loadError!)))
+                    description: String(describing: loadError!))
             } else if queue != nil {
                 allDoneView
             } else {
@@ -61,8 +61,9 @@ struct ReviewView: View {
         }
         // Full-screen study: hide the tab bar while reviewing (restored on pop).
         .toolbar(.hidden, for: .tabBar)
-        // nil suppresses the haptic entirely when the user turns it off.
-        .sensoryFeedback(trigger: answeredCount) { _, _ in hapticsEnabled ? .success : nil }
+        .onChange(of: answeredCount) { _ in
+            if hapticsEnabled { UINotificationFeedbackGenerator().notificationOccurred(.success) }
+        }
         .task {
             try? AVAudioSession.sharedInstance().setCategory(.playback)
             mediaSchemeHandler = MediaSchemeHandler(mediaFolderPath: backend.mediaFolderPath)
@@ -118,11 +119,9 @@ struct ReviewView: View {
     }
 
     private var allDoneView: some View {
-        ContentUnavailableView {
-            Label("All Done", systemImage: "checkmark.circle")
-        } description: {
-            Text(congratsDescription)
-        } actions: {
+        UnavailableView(
+            title: "All Done", systemImage: "checkmark.circle", description: congratsDescription
+        ) {
             if !undoLabel.isEmpty {
                 Button("Undo \(undoLabel)") {
                     Task { await undoTapped() }
@@ -134,7 +133,7 @@ struct ReviewView: View {
 
     @ViewBuilder
     private func answerBar(card: Anki_Scheduler_QueuedCards.QueuedCard) -> some View {
-        GlassEffectContainer(spacing: 8) {
+        GlassGroup {
             if showingAnswer {
                 HStack(spacing: 8) {
                     ratingButton("Again", subtitle: nextStates[safe: 0], color: .red) {
@@ -158,9 +157,11 @@ struct ReviewView: View {
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 10)
                 }
-                .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 16))
+                .glassSurface()
             }
         }
+        // No effect on iPhone; keeps the buttons reachable on a wide iPad window.
+        .frame(maxWidth: 600)
         .padding()
     }
 
@@ -175,11 +176,12 @@ struct ReviewView: View {
                     Text(subtitle).font(.caption2)
                 }
             }
+            // Colored text on same-colored glass is unreadable; the glass carries the color.
+            .foregroundStyle(Color.primary)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 10)
         }
-        .tint(color)
-        .glassEffect(.regular.tint(color.opacity(0.3)).interactive(), in: .rect(cornerRadius: 16))
+        .glassSurface(tint: color)
     }
 
     private var congratsDescription: String {

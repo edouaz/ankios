@@ -39,6 +39,7 @@ let check = #"""
     check(document.querySelector('#latex').naturalWidth === 12, 'desktop LaTeX image');
     check(document.body.classList.contains('card') && getComputedStyle(document.body).textAlign === 'center', 'Anki CSS');
     check(document.body.classList.contains('nightMode') === window.expectedDark && document.documentElement.classList.contains('nightMode') === window.expectedDark, 'night mode classes');
+    check([document.body, document.documentElement].every(el => el.classList.contains('night_mode') === window.expectedDark), 'alternate night mode class');
     const style = getComputedStyle(document.body);
     if (window.expectedDark) {
         check(style.backgroundColor !== 'rgb(255, 255, 255)' && style.color !== 'rgb(0, 0, 0)', 'default card must follow dark theme');
